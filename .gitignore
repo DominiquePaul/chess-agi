@@ -1,6 +1,12 @@
 # Editors
 .vscode/
 .idea/
+models/**
+
+runs/
+data/*
+!data/test_images/
+
 
 # Vagrant
 .vagrant/
