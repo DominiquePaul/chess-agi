@@ -1,7 +1,12 @@
+.cursorrules
+artifacts/**
+artifacts/
+
 # Editors
 .vscode/
 .idea/
 models/**
+.ruff_cache/
 
 runs/
 data/*

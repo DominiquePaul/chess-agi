@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "chesso"
 version = "0.1.0"
@@ -5,6 +9,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "cairosvg>=2.8.2",
+    "chess>=1.11.2",
     "ipykernel>=6.29.5",
     "ipython>=9.2.0",
     "kaggle>=1.7.4.5",
@@ -12,6 +18,15 @@ dependencies = [
     "matplotlib>=3.10.3",
     "opencv-python>=4.11.0.86",
     "pillow>=11.2.1",
+    "pipwin>=0.5.2",
     "roboflow>=1.1.64",
+    "ruff>=0.11.10",
+    "svglib>=1.5.1",
     "ultralytics>=8.3.140",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
