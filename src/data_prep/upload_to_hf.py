@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Dict, Any
 import yaml
-from datasets import Dataset, DatasetDict, Image, Value, Sequence
+from datasets import Dataset, DatasetDict, Image, Value, Sequence, Features
 from huggingface_hub import HfApi, upload_folder, create_repo
 from dotenv import load_dotenv
 import pandas as pd
@@ -106,7 +106,7 @@ class ChessDatasetUploader:
             
             if split_data:
                 # Define features
-                features = {
+                features = Features({
                     "image": Image(),
                     "image_id": Value("string"),
                     "annotations": Sequence({
@@ -118,7 +118,7 @@ class ChessDatasetUploader:
                     }),
                     "image_width": Value("int32"),
                     "image_height": Value("int32")
-                }
+                })
                 
                 dataset_dict[split] = Dataset.from_list(split_data, features=features)
         
