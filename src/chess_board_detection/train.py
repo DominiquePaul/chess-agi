@@ -3,6 +3,12 @@
 Training script for ChessBoardModel - Corner Detection
 
 This script trains a YOLO model to detect the 4 corners of a chessboard.
+
+Usage:
+    python src/chess_board_detection/train.py
+    
+    or from the project root:
+    python -m src.chess_board_detection.train
 """
 
 from pathlib import Path
