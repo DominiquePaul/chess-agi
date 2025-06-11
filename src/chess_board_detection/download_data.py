@@ -51,12 +51,23 @@ def download_roboflow_dataset():
         print(f"📦 Getting version {VERSION}")
         dataset = project.version(VERSION)
         
-        # Download the dataset
+        # Download the dataset using CLI approach (API download seems to have issues)
         print(f"⬇️  Downloading dataset to: {DATA_DIR}")
-        dataset.download(
-            location=str(DATA_DIR),
-            overwrite=True
-        )
+        import subprocess
+        
+        cmd = [
+            "roboflow", "download", 
+            "-f", "yolov8",
+            "-l", str(DATA_DIR),
+            f"{PROJECT_NAME}/{VERSION}"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            raise Exception(f"CLI download failed: {result.stderr}")
+        
+        print("✅ Downloaded using Roboflow CLI")
         
         # Find the downloaded dataset folder
         downloaded_folders = [d for d in DATA_DIR.iterdir() if d.is_dir()]

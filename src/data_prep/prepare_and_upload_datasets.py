@@ -111,9 +111,9 @@ def download_dominique_chess_pieces():
         return False
 
 
-def download_chessboard_corners():
-    """Download chessboard corner detection dataset from Roboflow"""
-    print("\n📦 Downloading Chessboard Corners Dataset...")
+def download_chessboard_corners_dominique():
+    """Download chessboard corner detection dataset from Roboflow (Dominique)"""
+    print("\n📦 Downloading Chessboard Corners Dataset (Dominique)...")
     print("   📊 Dataset: Chessboard corner detection (4 corners per board)")
     print("   📍 Source: Roboflow (gustoguardian/chess-board-box/3)")
     print("   🎯 Purpose: Training chessboard corner detection models")
@@ -125,11 +125,11 @@ def download_chessboard_corners():
         # Call the download function
         dataset_folder = download_roboflow_dataset()
         
-        print("✅ Chessboard corners dataset downloaded successfully")
+        print("✅ Chessboard corners dataset (Dominique) downloaded successfully")
         return True
         
     except Exception as e:
-        print(f"❌ Error downloading chessboard corners dataset: {e}")
+        print(f"❌ Error downloading chessboard corners dataset (Dominique): {e}")
         return False
 
 
@@ -174,13 +174,13 @@ def upload_to_huggingface(upload_individual=True, upload_merged=True, datasets_t
             
             # Note: Chessboard corners dataset upload would need separate handling
             # as it has different structure and uploader logic
-            if not datasets_to_upload or "corners" in datasets_to_upload:
+            if not datasets_to_upload or "corners_dominique" in datasets_to_upload:
                 corners_path = DATA_FOLDER_PATH / "chessboard_corners"
                 if corners_path.exists():
-                    print("    📋 Chessboard Corners dataset found but upload not yet implemented")
+                    print("    📋 Chessboard Corners dataset (Dominique) found but upload not yet implemented")
                     print("    💡 Use HuggingFace Hub directly or implement custom uploader")
                 else:
-                    print("    ⚠️  Chessboard Corners dataset not found, skipping")
+                    print("    ⚠️  Chessboard Corners dataset (Dominique) not found, skipping")
         
         if upload_merged:
             # Only attempt to merge if chess piece datasets are being processed
@@ -224,12 +224,12 @@ def main():
 Dataset Types:
   roboflow    - Chess pieces from Roboflow (via Kaggle)
   chesspieces_dominique   - Chess pieces from Dominique's Roboflow project  
-  corners     - Chessboard corner detection dataset
+  corners_dominique     - Chessboard corner detection dataset (Dominique)
 
 Examples:
   %(prog)s                                    # Download all datasets and upload
   %(prog)s --datasets roboflow chesspieces_dominique     # Download only chess piece datasets
-  %(prog)s --datasets corners                # Download only corner detection dataset  
+  %(prog)s --datasets corners_dominique                # Download only corner detection dataset  
   %(prog)s --datasets chesspieces_dominique           # Single dataset
   %(prog)s --skip-download                   # Only upload existing datasets
   %(prog)s --no-individual                   # Skip individual uploads, only merged
@@ -241,7 +241,7 @@ Examples:
     parser.add_argument(
         "--datasets",
         nargs="+",
-        choices=["roboflow", "chesspieces_dominique", "corners"],
+        choices=["roboflow", "chesspieces_dominique", "corners_dominique"],
         help="Specify which datasets to download (default: all)"
     )
     
@@ -273,7 +273,7 @@ Examples:
     
     # Default to all datasets if none specified
     if args.datasets is None:
-        args.datasets = ["roboflow", "chesspieces_dominique", "corners"]
+        args.datasets = ["roboflow", "chesspieces_dominique", "corners_dominique"]
     
     print("🏗️  Chess Dataset Preparation Pipeline")
     print("=" * 60)
@@ -305,7 +305,7 @@ Examples:
         download_functions = {
              "roboflow": ("Chess Pieces (Roboflow/Kaggle)", download_roboflow_chess_pieces),
              "chesspieces_dominique": ("Chess Pieces (Dominique)", download_dominique_chess_pieces), 
-             "corners": ("Chessboard Corners", download_chessboard_corners)
+             "corners_dominique": ("Chessboard Corners (Dominique)", download_chessboard_corners_dominique)
          }
         
         for dataset_key in args.datasets:
@@ -331,7 +331,7 @@ Examples:
             if not args.no_individual:
                 print("\n📤 Would upload individual datasets:")
                 for dataset in args.datasets:
-                    if dataset != "corners":  # corners needs special handling
+                    if dataset != "corners_dominique":  # corners_dominique needs special handling
                         print(f"   - {dataset}")
             if not args.no_merged:
                 print("\n📤 Would upload merged chess pieces dataset")
@@ -361,7 +361,7 @@ Examples:
             print("3. Start training your models:")
             if "roboflow" in args.datasets or "chesspieces_dominique" in args.datasets:
                 print("   - Chess piece detection: python -m src.chess_piece_detection.train")
-            if "corners" in args.datasets:
+            if "corners_dominique" in args.datasets:
                 print("   - Chessboard corners: python -m src.chess_board_detection.train")
         else:
             print(f"⚠️  Pipeline completed with issues: {success_count}/{total_steps} steps successful")

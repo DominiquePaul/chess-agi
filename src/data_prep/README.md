@@ -16,7 +16,7 @@ This module provides a complete pipeline for downloading, processing, and upload
   - Purpose: Training enhanced chess piece detection models
 
 ### Chessboard Corner Detection
-- **`corners`** - Chessboard corner detection dataset
+- **`corners_dominique`** - Chessboard corner detection dataset (Dominique)
   - 4 corners per chessboard
   - Source: Roboflow (`gustoguardian/chess-board-box/3`)
   - Purpose: Training chessboard corner detection models
@@ -54,7 +54,7 @@ python src/data_prep/prepare_and_upload_datasets.py --skip-upload
 python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow chesspieces_dominique
 
 # Download only corner detection dataset
-python src/data_prep/prepare_and_upload_datasets.py --datasets corners
+python src/data_prep/prepare_and_upload_datasets.py --datasets corners_dominique
 
 # Download just Dominique's dataset
 python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_dominique
@@ -64,7 +64,7 @@ python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_domin
 
 ### Dataset Selection
 ```bash
---datasets [roboflow] [chesspieces_dominique] [corners]
+--datasets [roboflow] [chesspieces_dominique] [corners_dominique]
 ```
 Specify which datasets to download. Default: all datasets.
 
@@ -97,7 +97,7 @@ python src/data_prep/prepare_and_upload_datasets.py --dry-run
 python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow chesspieces_dominique
 
 # Only corner detection
-python src/data_prep/prepare_and_upload_datasets.py --datasets corners
+python src/data_prep/prepare_and_upload_datasets.py --datasets corners_dominique
 
 # Single dataset
 python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_dominique
@@ -204,7 +204,7 @@ python -m src.chess_board_detection.download_data
 ```
 🏗️  Chess Dataset Preparation Pipeline
 ============================================================
-📊 Target datasets: roboflow, chesspieces_dominique, corners
+📊 Target datasets: roboflow, chesspieces_dominique, corners_dominique
 📁 Data directory: /path/to/data
 🔄 Mode: Download + Upload
 
@@ -226,11 +226,11 @@ python -m src.chess_board_detection.download_data
    🎯 Purpose: Training chess piece detection models (enhanced)
 ✅ Chess pieces dataset (Dominique) downloaded successfully
 
-📦 Downloading Chessboard Corners Dataset...
+📦 Downloading Chessboard Corners Dataset (Dominique)...
    📊 Dataset: Chessboard corner detection (4 corners per board)
    📍 Source: Roboflow (gustoguardian/chess-board-box/3)
    🎯 Purpose: Training chessboard corner detection models
-✅ Chessboard corners dataset downloaded successfully
+✅ Chessboard corners dataset (Dominique) downloaded successfully
 
 ========================================
 🚀 HUGGING FACE UPLOAD PHASE
@@ -240,7 +240,7 @@ python -m src.chess_board_detection.download_data
   📤 Uploading individual datasets...
     📋 Uploading Chess Pieces (Dominique)...
     📋 Uploading Chess Pieces (Roboflow/Kaggle)...
-    📋 Chessboard Corners dataset found but upload not yet implemented
+    📋 Chessboard Corners dataset (Dominique) found but upload not yet implemented
   📤 Uploading merged chess pieces dataset...
     🔄 Merging datasets: chess_pieces_dominique, chess_pieces_roboflow
 ✅ Dataset uploads completed!
