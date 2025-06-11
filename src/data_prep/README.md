@@ -39,25 +39,25 @@ uv add huggingface_hub
 # Create ~/.kaggle/kaggle.json with your API credentials
 ```
 
-### 2. Get Free Roboflow API Key (Recommended)
+### 2. Get Free Roboflow API Key (Required)
 
-To download datasets reliably, get a free Roboflow API key:
+To download datasets, get a free Roboflow API key and set it as an environment variable:
 
 1. **Visit**: https://roboflow.com/
 2. **Sign up** for a free account (takes 30 seconds)
 3. **Navigate** to Settings → API 
 4. **Copy** your API key
-5. **Use** the key with download commands:
+5. **Set environment variable**:
    ```bash
-   python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
+   export ROBOFLOW_API_KEY=your_api_key_here
+   # Add to your .env file or shell profile for persistence
    ```
 
-**Why get an API key?**
-- ✅ **Free** and takes 2 minutes
-- ✅ **Reliable downloads** without rate limiting
-- ✅ **Better error handling** 
-- ✅ **Works for all public datasets**
-- ✅ **Required for private datasets** (if needed later)
+**Why use environment variables?**
+- ✅ **Secure** - no API keys in command history
+- ✅ **Convenient** - set once, use everywhere
+- ✅ **Safe** - won't accidentally commit keys to git
+- ✅ **Standard practice** for API credentials
 
 ### 3. Download All Datasets
 ```bash
@@ -265,14 +265,17 @@ python src/data_prep/upload_to_hf.py
 
 ### Chessboard Corner Detection
 ```bash
-# Download with API key (required)
-python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
+# Set API key (required)
+export ROBOFLOW_API_KEY=your_api_key_here
+
+# Download dataset
+python src/chess_board_detection/download_data.py
 
 # Download to custom directory
-python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-dir data/my_corners
+python src/chess_board_detection/download_data.py --data-dir data/my_corners
 
 # Download with verbose output
-python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --verbose
+python src/chess_board_detection/download_data.py --verbose
 ```
 
 ## 📊 Pipeline Output Example
@@ -345,8 +348,9 @@ For automated downloads, you need a free Roboflow API key:
 # Get your free API key:
 # 1. Visit https://roboflow.com/ and sign up (free)
 # 2. Get API key from Settings → API
-# 3. Use with download:
-python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
+# 3. Set environment variable:
+export ROBOFLOW_API_KEY=your_api_key_here
+python src/chess_board_detection/download_data.py
 
 # Manual download alternative:
 # 1. Visit https://universe.roboflow.com/gustoguardian/chess-board-box

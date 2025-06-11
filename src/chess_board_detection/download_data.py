@@ -6,11 +6,12 @@ Downloads the chessboard corner dataset from Roboflow.
 Dataset: gustoguardian/chess-board-box/3
 
 Usage:
-    # Download with API key (required for automated download)
-    python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
+    # Set API key as environment variable (required)
+    export ROBOFLOW_API_KEY=your_api_key_here
+    python src/chess_board_detection/download_data.py
     
     # Download to custom directory
-    python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-dir data/my_corners
+    python src/chess_board_detection/download_data.py --data-dir data/my_corners
     
     # Get help with all options
     python src/chess_board_detection/download_data.py --help
@@ -29,12 +30,6 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
-    parser.add_argument(
-        "--api-key",
-        type=str,
-        required=True,
-        help="Roboflow API key (get from https://roboflow.com/). Required for automated downloads."
-    )
     parser.add_argument(
         "--data-dir",
         type=str,
@@ -68,6 +63,21 @@ def parse_args():
     
     return parser.parse_args()
 
+def get_api_key():
+    """Get API key from environment variables."""
+    api_key = os.environ.get('ROBOFLOW_API_KEY')
+    
+    if not api_key:
+        print("❌ ROBOFLOW_API_KEY environment variable not set!")
+        print("\n💡 Set your API key:")
+        print("   export ROBOFLOW_API_KEY=your_api_key_here")
+        print("   python src/chess_board_detection/download_data.py")
+        print()
+        print("🔑 Get free API key at: https://roboflow.com/ → Settings → API")
+        sys.exit(1)
+    
+    return api_key
+
 def download_roboflow_dataset(args):
     """Download the chessboard corner dataset from Roboflow."""
     
@@ -79,6 +89,9 @@ def download_roboflow_dataset(args):
         print("💡 Install it with: uv add roboflow")
         print("💡 Or try manual download from: https://universe.roboflow.com/gustoguardian/chess-board-box")
         sys.exit(1)
+    
+    # Get API key from environment
+    api_key = get_api_key()
     
     # Configuration from arguments
     PROJECT_NAME = args.project
@@ -92,7 +105,7 @@ def download_roboflow_dataset(args):
     print(f"🔢 Version: {VERSION}")
     print(f"📁 Download directory: {DATA_DIR}")
     print(f"📋 Format: {FORMAT}")
-    print(f"🔑 Using API key: {args.api_key[:8]}...")
+    print(f"🔑 Using API key: {api_key[:8]}...")
     print("=" * 60)
     
     # Create data directory
@@ -101,7 +114,7 @@ def download_roboflow_dataset(args):
     try:
         # Initialize Roboflow with API key
         print(f"🔑 Authenticating with Roboflow...")
-        rf = Roboflow(api_key=args.api_key)
+        rf = Roboflow(api_key=api_key)
         
         # Get the project
         print(f"🔍 Accessing project: {PROJECT_NAME}")
@@ -217,11 +230,12 @@ def main():
     try:
         args = parse_args()
     except SystemExit as e:
-        if e.code == 2:  # argparse error (missing required argument)
+        if e.code == 2:  # argparse error
             print("\n💡 Quick start:")
             print("1. Get free API key: https://roboflow.com/ → Settings → API")
-            print("2. Run: python src/chess_board_detection/download_data.py --api-key YOUR_KEY")
-            print("3. Or use manual download from: https://universe.roboflow.com/gustoguardian/chess-board-box")
+            print("2. Set environment variable: export ROBOFLOW_API_KEY=your_key_here")
+            print("3. Run: python src/chess_board_detection/download_data.py")
+            print("4. Or use manual download from: https://universe.roboflow.com/gustoguardian/chess-board-box")
         raise
     
     try:

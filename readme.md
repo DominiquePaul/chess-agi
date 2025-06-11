@@ -67,14 +67,17 @@ test_data = merged_dataset["test"]
 
 #### Chessboard Corner Detection
 
-For corner detection datasets, download with API key:
+For corner detection datasets, set API key and download:
 
 ```bash
-# Download with API key (required for automated download)
-python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
+# Set API key (required for automated download)
+export ROBOFLOW_API_KEY=your_api_key_here
+
+# Download dataset
+python src/chess_board_detection/download_data.py
 
 # Download to custom directory
-python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-dir data/my_corners
+python src/chess_board_detection/download_data.py --data-dir data/my_corners
 
 # This downloads from Roboflow: gustoguardian/chess-board-box/3
 # Contains images with 4 corners per chessboard labeled
@@ -89,9 +92,10 @@ python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-
 3. **Complete**: registration (30 seconds)
 4. **Go to**: Settings → API (or click your profile → Settings → API)
 5. **Copy**: your API key
-6. **Use**: `python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY`
+6. **Set environment variable**: `export ROBOFLOW_API_KEY=your_api_key_here`
+7. **Run**: `python src/chess_board_detection/download_data.py`
 
-**Benefits**: Free, reliable downloads, no rate limits, works for all datasets.
+**Benefits**: Secure, convenient, follows best practices for API credentials.
 
 **Alternative**: See [troubleshooting guide](src/data_prep/README.md#troubleshooting) for manual download instructions.
 
