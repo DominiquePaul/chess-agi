@@ -70,12 +70,23 @@ test_data = merged_dataset["test"]
 For corner detection datasets, download directly:
 
 ```bash
-# Download chessboard corner detection dataset
-python -m src.chess_board_detection.download_data
+# Basic download (tries public access)
+python src/chess_board_detection/download_data.py
+
+# Download with API key (recommended for reliability)
+python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
+
+# Try alternative CLI download method
+python src/chess_board_detection/download_data.py --use-cli
+
+# Download to custom directory with verbose output
+python src/chess_board_detection/download_data.py --data-dir data/my_corners --verbose
 
 # This downloads from Roboflow: gustoguardian/chess-board-box/3
 # Contains images with 4 corners per chessboard labeled
 ```
+
+**Note**: If you get "API Key is of Incorrect Type" error, get a free API key from [roboflow.com](https://roboflow.com/) or try the `--use-cli` option. See [troubleshooting guide](src/data_prep/README.md#troubleshooting) for detailed solutions.
 
 ### Recreate datasets from source
 
@@ -157,11 +168,22 @@ python -m src.chess_piece_detection.inference_example
 
 ### Chessboard Corner Detection
 ```bash
-# Download corner detection dataset
-python -m src.chess_board_detection.download_data
+# Download corner detection dataset (with troubleshooting options)
+python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
 
-# Train corner detection model
-python -m src.chess_board_detection.train
+# Train corner detection model with default settings
+python src/chess_board_detection/train.py
+
+# Train with custom parameters and HuggingFace upload
+python src/chess_board_detection/train.py \
+    --data data/chessboard_corners/chess-board-box-3/data.yaml \
+    --epochs 100 \
+    --batch 32 \
+    --upload-hf \
+    --hf-model-name username/chessboard-corner-detector
+
+# View all training options
+python src/chess_board_detection/train.py --help
 
 # Test corner detection
 python -m src.chess_board_detection.inference_example
@@ -203,6 +225,22 @@ corner_model.plot_eval("image.jpg", show_polygon=True)
 if is_valid:
     ordered_corners = corner_model.order_corners(coordinates)
 ```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Dataset Download Problems
+- **API Key Error**: Get free API key from [roboflow.com](https://roboflow.com/) or use `--use-cli` flag
+- **Network Issues**: Check internet connection and try different download methods
+- **Missing Dependencies**: Run `uv add roboflow huggingface_hub`
+
+#### Training Issues
+- **Dataset Not Found**: Verify data path with `--data` flag
+- **GPU Memory**: Reduce `--batch` size if running out of memory
+- **HuggingFace Upload**: Login with `huggingface-cli login` first
+
+See detailed troubleshooting guide: [src/data_prep/README.md](src/data_prep/README.md#troubleshooting)
 
 ### Notes
 

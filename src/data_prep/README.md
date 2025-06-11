@@ -135,12 +135,54 @@ $DATA_FOLDER_PATH/
 │   ├── test/
 │   └── data.yaml
 └── chessboard_corners/            # Chessboard corners
-    └── chess-board-box-3/
+    └── chess-board-box-3/         # Downloaded dataset folder
         ├── train/
         ├── valid/
         ├── test/
-        └── data.yaml
+        └── data.yaml              # Use this path for training
 ```
+
+## 🎯 Training Models
+
+### Chessboard Corner Detection Training Options
+
+The training script now supports comprehensive command-line configuration:
+
+```bash
+# View all available options
+python src/chess_board_detection/train.py --help
+
+# Basic training with dataset validation
+python src/chess_board_detection/train.py --data data/chessboard_corners/chess-board-box-3/data.yaml
+
+# Full training with all options
+python src/chess_board_detection/train.py \
+    --data data/chessboard_corners/chess-board-box-3/data.yaml \
+    --models-folder models/chess_corners \
+    --name corner_detection_v1 \
+    --epochs 100 \
+    --batch 32 \
+    --imgsz 640 \
+    --lr 0.001 \
+    --patience 20 \
+    --save-period 5 \
+    --degrees 10.0 \
+    --translate 0.1 \
+    --scale 0.3 \
+    --fliplr 0.5 \
+    --flipud 0.0 \
+    --mosaic 0.9 \
+    --upload-hf \
+    --hf-model-name username/chessboard-corner-detector \
+    --verbose
+```
+
+### Key Training Features
+- **Dataset validation** before training starts
+- **HuggingFace integration** for automatic model upload
+- **Comprehensive parameter control** for training customization
+- **Enhanced error handling** with helpful troubleshooting
+- **Progress tracking** with detailed output
 
 ## 🤗 Hugging Face Integration
 
@@ -173,8 +215,16 @@ python -m src.chess_piece_detection.train
 
 ### Chessboard Corner Detection
 ```bash
-# Train corner detection model
-python -m src.chess_board_detection.train
+# Train corner detection model with default settings
+python src/chess_board_detection/train.py
+
+# Train with custom parameters and HuggingFace upload
+python src/chess_board_detection/train.py \
+    --data data/chessboard_corners/chess-board-box-3/data.yaml \
+    --epochs 100 \
+    --batch 32 \
+    --upload-hf \
+    --hf-model-name username/chessboard-corner-detector
 
 # Test corner detection
 python -m src.chess_board_detection.inference_example
@@ -195,8 +245,17 @@ python src/data_prep/upload_to_hf.py
 
 ### Chessboard Corner Detection
 ```bash
-# Download corner detection dataset
-python -m src.chess_board_detection.download_data
+# Basic download (tries public access)
+python src/chess_board_detection/download_data.py
+
+# Download with API key (recommended for reliability)
+python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
+
+# Try alternative CLI download method
+python src/chess_board_detection/download_data.py --use-cli
+
+# Download to custom directory with verbose output
+python src/chess_board_detection/download_data.py --data-dir data/my_corners --verbose
 ```
 
 ## 📊 Pipeline Output Example
@@ -257,6 +316,57 @@ python -m src.chess_board_detection.download_data
    - Chess piece detection: python -m src.chess_piece_detection.train
    - Chessboard corners: python -m src.chess_board_detection.train
 ```
+
+## 🔧 Troubleshooting
+
+### Dataset Download Issues
+
+#### Roboflow API Key Error
+If you get "API Key is of Incorrect Type" error:
+
+```bash
+# Option 1: Get FREE Roboflow API key (recommended)
+# 1. Visit https://roboflow.com/ and sign up (free)
+# 2. Get API key from Settings → API
+# 3. Use with download:
+python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
+
+# Option 2: Try CLI download method
+python src/chess_board_detection/download_data.py --use-cli
+
+# Option 3: Manual download
+# 1. Visit https://universe.roboflow.com/gustoguardian/chess-board-box
+# 2. Download YOLO v8 format
+# 3. Extract to data/chessboard_corners/
+```
+
+#### Dataset Path Issues
+Update your training data path based on download location:
+
+```bash
+# If downloaded to default location
+python src/chess_board_detection/train.py --data data/chessboard_corners/chess-board-box-3/data.yaml
+
+# If downloaded to custom location
+python src/chess_board_detection/train.py --data path/to/your/data.yaml
+```
+
+#### HuggingFace Upload Issues
+```bash
+# Make sure you're logged in
+huggingface-cli login
+
+# Check your username and model name format
+python src/chess_board_detection/train.py \
+    --upload-hf \
+    --hf-model-name your-username/model-name
+```
+
+### Common Solutions
+1. **Missing dependencies**: `uv add roboflow huggingface_hub`
+2. **Network issues**: Check internet connection and firewall
+3. **Disk space**: Ensure sufficient space for datasets (~1-5GB each)
+4. **Permissions**: Make sure you have write access to data directory
 
 ## 🔗 Related Documentation
 
