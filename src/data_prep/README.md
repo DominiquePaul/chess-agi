@@ -39,7 +39,27 @@ uv add huggingface_hub
 # Create ~/.kaggle/kaggle.json with your API credentials
 ```
 
-### 2. Download All Datasets
+### 2. Get Free Roboflow API Key (Recommended)
+
+To download datasets reliably, get a free Roboflow API key:
+
+1. **Visit**: https://roboflow.com/
+2. **Sign up** for a free account (takes 30 seconds)
+3. **Navigate** to Settings → API 
+4. **Copy** your API key
+5. **Use** the key with download commands:
+   ```bash
+   python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
+   ```
+
+**Why get an API key?**
+- ✅ **Free** and takes 2 minutes
+- ✅ **Reliable downloads** without rate limiting
+- ✅ **Better error handling** 
+- ✅ **Works for all public datasets**
+- ✅ **Required for private datasets** (if needed later)
+
+### 3. Download All Datasets
 ```bash
 # Download and upload all datasets
 python src/data_prep/prepare_and_upload_datasets.py
@@ -48,7 +68,7 @@ python src/data_prep/prepare_and_upload_datasets.py
 python src/data_prep/prepare_and_upload_datasets.py --skip-upload
 ```
 
-### 3. Download Specific Datasets
+### 4. Download Specific Datasets
 ```bash
 # Download only chess piece datasets
 python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow chesspieces_dominique
@@ -245,17 +265,14 @@ python src/data_prep/upload_to_hf.py
 
 ### Chessboard Corner Detection
 ```bash
-# Basic download (tries public access)
-python src/chess_board_detection/download_data.py
-
-# Download with API key (recommended for reliability)
+# Download with API key (required)
 python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
 
-# Try alternative CLI download method
-python src/chess_board_detection/download_data.py --use-cli
+# Download to custom directory
+python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-dir data/my_corners
 
-# Download to custom directory with verbose output
-python src/chess_board_detection/download_data.py --data-dir data/my_corners --verbose
+# Download with verbose output
+python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --verbose
 ```
 
 ## 📊 Pipeline Output Example
@@ -321,20 +338,17 @@ python src/chess_board_detection/download_data.py --data-dir data/my_corners --v
 
 ### Dataset Download Issues
 
-#### Roboflow API Key Error
-If you get "API Key is of Incorrect Type" error:
+#### Roboflow API Key Required
+For automated downloads, you need a free Roboflow API key:
 
 ```bash
-# Option 1: Get FREE Roboflow API key (recommended)
+# Get your free API key:
 # 1. Visit https://roboflow.com/ and sign up (free)
 # 2. Get API key from Settings → API
 # 3. Use with download:
 python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
 
-# Option 2: Try CLI download method
-python src/chess_board_detection/download_data.py --use-cli
-
-# Option 3: Manual download
+# Manual download alternative:
 # 1. Visit https://universe.roboflow.com/gustoguardian/chess-board-box
 # 2. Download YOLO v8 format
 # 3. Extract to data/chessboard_corners/

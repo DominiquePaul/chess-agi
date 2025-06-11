@@ -67,26 +67,33 @@ test_data = merged_dataset["test"]
 
 #### Chessboard Corner Detection
 
-For corner detection datasets, download directly:
+For corner detection datasets, download with API key:
 
 ```bash
-# Basic download (tries public access)
-python src/chess_board_detection/download_data.py
-
-# Download with API key (recommended for reliability)
+# Download with API key (required for automated download)
 python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
 
-# Try alternative CLI download method
-python src/chess_board_detection/download_data.py --use-cli
-
-# Download to custom directory with verbose output
-python src/chess_board_detection/download_data.py --data-dir data/my_corners --verbose
+# Download to custom directory
+python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-dir data/my_corners
 
 # This downloads from Roboflow: gustoguardian/chess-board-box/3
 # Contains images with 4 corners per chessboard labeled
 ```
 
-**Note**: If you get "API Key is of Incorrect Type" error, get a free API key from [roboflow.com](https://roboflow.com/) or try the `--use-cli` option. See [troubleshooting guide](src/data_prep/README.md#troubleshooting) for detailed solutions.
+#### 🔑 How to Get Free Roboflow API Key
+
+**API key is required for automated downloads.** Follow these steps:
+
+1. **Visit**: https://roboflow.com/
+2. **Click**: "Sign Up" (free account)
+3. **Complete**: registration (30 seconds)
+4. **Go to**: Settings → API (or click your profile → Settings → API)
+5. **Copy**: your API key
+6. **Use**: `python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY`
+
+**Benefits**: Free, reliable downloads, no rate limits, works for all datasets.
+
+**Alternative**: See [troubleshooting guide](src/data_prep/README.md#troubleshooting) for manual download instructions.
 
 ### Recreate datasets from source
 
@@ -231,7 +238,7 @@ if is_valid:
 ### Common Issues
 
 #### Dataset Download Problems
-- **API Key Error**: Get free API key from [roboflow.com](https://roboflow.com/) or use `--use-cli` flag
+- **API Key Error**: Follow [Roboflow API key instructions](#-how-to-get-free-roboflow-api-key) above or use manual download
 - **Network Issues**: Check internet connection and try different download methods
 - **Missing Dependencies**: Run `uv add roboflow huggingface_hub`
 

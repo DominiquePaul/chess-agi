@@ -6,17 +6,14 @@ Downloads the chessboard corner dataset from Roboflow.
 Dataset: gustoguardian/chess-board-box/3
 
 Usage:
-    # Download with default settings (public dataset)
-    python src/chess_board_detection/download_data.py
-    
-    # Download with API key for better reliability
+    # Download with API key (required for automated download)
     python src/chess_board_detection/download_data.py --api-key YOUR_ROBOFLOW_API_KEY
     
-    # Use alternative download method
-    python src/chess_board_detection/download_data.py --use-cli
-    
     # Download to custom directory
-    python src/chess_board_detection/download_data.py --data-dir data/my_corners
+    python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY --data-dir data/my_corners
+    
+    # Get help with all options
+    python src/chess_board_detection/download_data.py --help
 """
 
 import argparse
@@ -35,19 +32,14 @@ def parse_args():
     parser.add_argument(
         "--api-key",
         type=str,
-        default=None,
-        help="Roboflow API key (get from https://roboflow.com/). Not required for public datasets but improves reliability"
+        required=True,
+        help="Roboflow API key (get from https://roboflow.com/). Required for automated downloads."
     )
     parser.add_argument(
         "--data-dir",
         type=str,
         default="data/chessboard_corners",
         help="Directory to download the dataset to"
-    )
-    parser.add_argument(
-        "--use-cli",
-        action="store_true",
-        help="Use Roboflow CLI for download (alternative method)"
     )
     parser.add_argument(
         "--project",
@@ -100,77 +92,31 @@ def download_roboflow_dataset(args):
     print(f"🔢 Version: {VERSION}")
     print(f"📁 Download directory: {DATA_DIR}")
     print(f"📋 Format: {FORMAT}")
+    print(f"🔑 Using API key: {args.api_key[:8]}...")
     print("=" * 60)
     
     # Create data directory
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     
     try:
-        # Try multiple download methods
-        success = False
+        # Initialize Roboflow with API key
+        print(f"🔑 Authenticating with Roboflow...")
+        rf = Roboflow(api_key=args.api_key)
         
-        # Method 1: Try with API key if provided
-        if args.api_key:
-            print(f"🔑 Using API key for authentication")
-            rf = Roboflow(api_key=args.api_key)
-        else:
-            print(f"🌐 Attempting public access (no API key)")
-            # Try to access as public dataset
-            try:
-                rf = Roboflow()
-            except Exception as e:
-                print(f"⚠️  Public access failed: {e}")
-                print(f"💡 Try providing API key with --api-key")
+        # Get the project
+        print(f"🔍 Accessing project: {PROJECT_NAME}")
+        project = rf.workspace().project(PROJECT_NAME.split('/')[-1])
         
-        # Method 2: Use CLI download if requested or if API fails
-        if args.use_cli or not args.api_key:
-            print(f"🔧 Using Roboflow CLI for download")
-            import subprocess
-            
-            cmd = [
-                "roboflow", "download", 
-                "-f", FORMAT.lower(),
-                "-l", str(DATA_DIR),
-                f"{PROJECT_NAME}/{VERSION}"
-            ]
-            
-            if args.verbose:
-                print(f"🔧 Running command: {' '.join(cmd)}")
-            
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if result.returncode == 0:
-                print("✅ Downloaded using Roboflow CLI")
-                success = True
-            else:
-                print(f"❌ CLI download failed: {result.stderr}")
-                if args.verbose:
-                    print(f"stdout: {result.stdout}")
+        # Get the specific version
+        print(f"📦 Getting version {VERSION}")
+        dataset = project.version(VERSION)
         
-        # Method 3: Try API download if CLI failed and we have rf instance
-        if not success and 'rf' in locals():
-            try:
-                print(f"🔍 Accessing project via API: {PROJECT_NAME}")
-                project = rf.workspace().project(PROJECT_NAME.split('/')[-1])
-                
-                print(f"📦 Getting version {VERSION}")
-                dataset = project.version(VERSION)
-                
-                print(f"⬇️  Downloading dataset to: {DATA_DIR}")
-                dataset.download(
-                    location=str(DATA_DIR)
-                )
-                print("✅ Downloaded using Roboflow API")
-                success = True
-                
-            except Exception as e:
-                print(f"❌ API download failed: {e}")
-                if args.verbose:
-                    import traceback
-                    traceback.print_exc()
-        
-        if not success:
-            raise Exception("All download methods failed. Please check your configuration or try manual download.")
+        # Download the dataset
+        print(f"⬇️  Downloading dataset to: {DATA_DIR}")
+        dataset.download(
+            location=str(DATA_DIR)
+        )
+        print("✅ Dataset downloaded successfully!")
         
         # Find the downloaded dataset folder
         downloaded_folders = [d for d in DATA_DIR.iterdir() if d.is_dir()]
@@ -212,8 +158,8 @@ def download_roboflow_dataset(args):
         
         print("\n✅ Download completed successfully!")
         print("\n🎯 Next steps:")
-        print(f"1. Update training script to use: {data_yaml_path}")
-        print("2. Run training: python -m src.chess_board_detection.train")
+        print(f"1. Train the model: python src/chess_board_detection/train.py --data {data_yaml_path}")
+        print("2. View training options: python src/chess_board_detection/train.py --help")
         print("3. Test the trained model on your images")
         
         return dataset_folder
@@ -221,23 +167,19 @@ def download_roboflow_dataset(args):
     except Exception as e:
         print(f"❌ Failed to download dataset: {e}")
         print("\n💡 Troubleshooting Options:")
-        print("1. Get a FREE Roboflow API key:")
+        print("1. Check your API key:")
         print("   • Visit: https://roboflow.com/")
-        print("   • Sign up for free account")
-        print("   • Get API key from Settings")
-        print("   • Run: python src/chess_board_detection/download_data.py --api-key YOUR_KEY")
+        print("   • Go to Settings → API")
+        print("   • Verify your API key is correct")
         print()
-        print("2. Try CLI download method:")
-        print("   • Run: python src/chess_board_detection/download_data.py --use-cli")
-        print()
-        print("3. Manual download:")
+        print("2. Manual download:")
         print("   • Visit: https://universe.roboflow.com/gustoguardian/chess-board-box")
         print("   • Download YOLO v8 format")
         print("   • Extract to: data/chessboard_corners/")
         print()
-        print("4. Alternative datasets:")
-        print("   • Search for chess corner detection datasets on Kaggle")
-        print("   • Create your own dataset using labeling tools")
+        print("3. Check network connection:")
+        print("   • Ensure you have internet access")
+        print("   • Try again in a few minutes")
         
         if args.verbose:
             raise
@@ -272,7 +214,15 @@ def main():
     """Main function to download and setup the chessboard corner dataset."""
     
     # Parse command line arguments
-    args = parse_args()
+    try:
+        args = parse_args()
+    except SystemExit as e:
+        if e.code == 2:  # argparse error (missing required argument)
+            print("\n💡 Quick start:")
+            print("1. Get free API key: https://roboflow.com/ → Settings → API")
+            print("2. Run: python src/chess_board_detection/download_data.py --api-key YOUR_KEY")
+            print("3. Or use manual download from: https://universe.roboflow.com/gustoguardian/chess-board-box")
+        raise
     
     try:
         dataset_folder = download_roboflow_dataset(args)
