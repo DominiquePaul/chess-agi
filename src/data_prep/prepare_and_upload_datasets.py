@@ -1,6 +1,7 @@
 """
-Prepare and upload chess piece datasets to Hugging Face Hub.
-This script orchestrates the complete dataset preparation pipeline.
+Prepare and upload chess datasets to Hugging Face Hub.
+This script orchestrates the complete dataset preparation pipeline for both
+chess piece detection and chessboard corner detection.
 """
 
 import os
@@ -54,9 +55,12 @@ def check_prerequisites():
     return True
 
 
-def download_roboflow_data():
-    """Download and process Roboflow dataset from Kaggle"""
-    print("\n📦 Step 1: Downloading and processing Roboflow dataset from Kaggle...")
+def download_roboflow_chess_pieces():
+    """Download and process chess pieces dataset from Kaggle (Roboflow source)"""
+    print("\n📦 Downloading Chess Pieces Dataset (Roboflow/Kaggle)...")
+    print("   📊 Dataset: Chess piece detection with 12 classes")
+    print("   📍 Source: Kaggle (originally from Roboflow)")
+    print("   🎯 Purpose: Training chess piece detection models")
     
     try:
         dataset_name = Path("chess_pieces_roboflow")
@@ -70,17 +74,20 @@ def download_roboflow_data():
         # Update data.yaml
         update_data_yaml(DATA_FOLDER_PATH, dataset_name)
         
-        print("✅ Roboflow dataset processed successfully")
+        print("✅ Chess pieces dataset (Roboflow/Kaggle) processed successfully")
         return True
         
     except Exception as e:
-        print(f"❌ Error processing Roboflow dataset: {e}")
+        print(f"❌ Error processing chess pieces dataset (Roboflow/Kaggle): {e}")
         return False
 
 
-def download_dominique_data():
-    """Download Dominique dataset from Roboflow"""
-    print("\n📦 Step 2: Downloading Dominique dataset from Roboflow...")
+def download_dominique_chess_pieces():
+    """Download Dominique's chess pieces dataset from Roboflow"""
+    print("\n📦 Downloading Chess Pieces Dataset (Dominique)...")
+    print("   📊 Dataset: Chess piece detection with 12 classes")  
+    print("   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/6)")
+    print("   🎯 Purpose: Training chess piece detection models (enhanced)")
     
     try:
         cmd = [
@@ -93,51 +100,108 @@ def download_dominique_data():
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
-            print("✅ Dominique dataset downloaded successfully")
+            print("✅ Chess pieces dataset (Dominique) downloaded successfully")
             return True
         else:
-            print(f"❌ Error downloading Dominique dataset: {result.stderr}")
+            print(f"❌ Error downloading chess pieces dataset (Dominique): {result.stderr}")
             return False
             
     except Exception as e:
-        print(f"❌ Error downloading Dominique dataset: {e}")
+        print(f"❌ Error downloading chess pieces dataset (Dominique): {e}")
         return False
 
 
-def upload_to_huggingface(upload_individual=True, upload_merged=True):
-    """Upload datasets to Hugging Face Hub"""
-    print("\n🚀 Step 3: Uploading datasets to Hugging Face Hub...")
+def download_chessboard_corners():
+    """Download chessboard corner detection dataset from Roboflow"""
+    print("\n📦 Downloading Chessboard Corners Dataset...")
+    print("   📊 Dataset: Chessboard corner detection (4 corners per board)")
+    print("   📍 Source: Roboflow (gustoguardian/chess-board-box/3)")
+    print("   🎯 Purpose: Training chessboard corner detection models")
     
     try:
+        # Import the download function
+        from src.chess_board_detection.download_data import download_roboflow_dataset
+        
+        # Call the download function
+        dataset_folder = download_roboflow_dataset()
+        
+        print("✅ Chessboard corners dataset downloaded successfully")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error downloading chessboard corners dataset: {e}")
+        return False
+
+
+def upload_to_huggingface(upload_individual=True, upload_merged=True, datasets_to_upload=None):
+    """Upload datasets to Hugging Face Hub"""
+    print("\n🚀 Uploading datasets to Hugging Face Hub...")
+    
+    try:
+        if not HF_USERNAME:
+            print("❌ HF_USERNAME not set, cannot upload to Hugging Face")
+            return False
+            
         uploader = ChessDatasetUploader(DATA_FOLDER_PATH, HF_USERNAME)
         
         if upload_individual:
             print("  📤 Uploading individual datasets...")
             
-            # Upload Dominique dataset
-            uploader.upload_individual_dataset(
-                dataset_name="chess_pieces_dominique",
-                repo_name="chess-pieces-dominique",
-                description="Chess piece detection dataset from Dominique/Roboflow with 12 classes of chess pieces, optimized for YOLOv8 training."
-            )
+            # Upload chess piece datasets if they exist and are requested
+            if not datasets_to_upload or "chesspieces_dominique" in datasets_to_upload:
+                dominique_path = DATA_FOLDER_PATH / "chess_pieces_dominique"
+                if dominique_path.exists():
+                    print("    📋 Uploading Chess Pieces (Dominique)...")
+                    uploader.upload_individual_dataset(
+                        dataset_name="chess_pieces_dominique",
+                        repo_name="chess-pieces-dominique",
+                        description="Chess piece detection dataset from Dominique/Roboflow with 12 classes of chess pieces, optimized for YOLOv8 training."
+                    )
+                else:
+                    print("    ⚠️  Chess Pieces (Dominique) dataset not found, skipping upload")
             
-            # Upload Roboflow dataset
-            uploader.upload_individual_dataset(
-                dataset_name="chess_pieces_roboflow", 
-                repo_name="chess-pieces-roboflow",
-                description="Chess piece detection dataset from Roboflow with processed labels, cleaned and standardized for YOLOv8 format."
-            )
+            if not datasets_to_upload or "roboflow" in datasets_to_upload:
+                roboflow_path = DATA_FOLDER_PATH / "chess_pieces_roboflow"
+                if roboflow_path.exists():
+                    print("    📋 Uploading Chess Pieces (Roboflow/Kaggle)...")
+                    uploader.upload_individual_dataset(
+                        dataset_name="chess_pieces_roboflow", 
+                        repo_name="chess-pieces-roboflow",
+                        description="Chess piece detection dataset from Roboflow with processed labels, cleaned and standardized for YOLOv8 format."
+                    )
+                else:
+                    print("    ⚠️  Chess Pieces (Roboflow/Kaggle) dataset not found, skipping upload")
+            
+            # Note: Chessboard corners dataset upload would need separate handling
+            # as it has different structure and uploader logic
+            if not datasets_to_upload or "corners" in datasets_to_upload:
+                corners_path = DATA_FOLDER_PATH / "chessboard_corners"
+                if corners_path.exists():
+                    print("    📋 Chessboard Corners dataset found but upload not yet implemented")
+                    print("    💡 Use HuggingFace Hub directly or implement custom uploader")
+                else:
+                    print("    ⚠️  Chessboard Corners dataset not found, skipping")
         
         if upload_merged:
-            print("  📤 Uploading merged dataset...")
+            print("  📤 Uploading merged chess pieces dataset...")
             
-            uploader.merge_and_upload_datasets(
-                dataset_names=["chess_pieces_dominique", "chess_pieces_roboflow"],
-                repo_name="chess-pieces-merged", 
-                description="Comprehensive chess piece detection dataset combining multiple high-quality sources. This merged dataset provides more training data and better generalization for chess piece detection models."
-            )
+            available_datasets = []
+            if (DATA_FOLDER_PATH / "chess_pieces_dominique").exists():
+                available_datasets.append("chess_pieces_dominique")
+            if (DATA_FOLDER_PATH / "chess_pieces_roboflow").exists():
+                available_datasets.append("chess_pieces_roboflow")
+            
+            if len(available_datasets) >= 2:
+                print(f"    🔄 Merging datasets: {', '.join(available_datasets)}")
+                uploader.merge_and_upload_datasets(
+                    dataset_names=available_datasets,
+                    repo_name="chess-pieces-merged", 
+                    description="Comprehensive chess piece detection dataset combining multiple high-quality sources. This merged dataset provides more training data and better generalization for chess piece detection models."
+                )
+            else:
+                print(f"    ⚠️  Need at least 2 datasets to merge, found {len(available_datasets)}")
         
-        print("✅ All datasets uploaded successfully!")
+        print("✅ Dataset uploads completed!")
         return True
         
     except Exception as e:
@@ -147,15 +211,31 @@ def upload_to_huggingface(upload_individual=True, upload_merged=True):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Prepare and upload chess piece datasets to Hugging Face Hub",
+        description="Prepare and upload chess datasets to Hugging Face Hub",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Dataset Types:
+  roboflow    - Chess pieces from Roboflow (via Kaggle)
+  chesspieces_dominique   - Chess pieces from Dominique's Roboflow project  
+  corners     - Chessboard corner detection dataset
+
 Examples:
-  %(prog)s                           # Full pipeline: download, process, and upload all
-  %(prog)s --skip-download           # Only upload existing datasets
-  %(prog)s --no-individual           # Skip individual dataset uploads, only merged
-  %(prog)s --no-merged               # Skip merged dataset upload, only individual
+  %(prog)s                                    # Download all datasets and upload
+  %(prog)s --datasets roboflow chesspieces_dominique     # Download only chess piece datasets
+  %(prog)s --datasets corners                # Download only corner detection dataset  
+  %(prog)s --datasets chesspieces_dominique           # Single dataset
+  %(prog)s --skip-download                   # Only upload existing datasets
+  %(prog)s --no-individual                   # Skip individual uploads, only merged
+  %(prog)s --no-merged                       # Skip merged upload, only individual
+  %(prog)s --dry-run                         # Show what would be done
         """
+    )
+    
+    parser.add_argument(
+        "--datasets",
+        nargs="+",
+        choices=["roboflow", "chesspieces_dominique", "corners"],
+        help="Specify which datasets to download (default: all)"
     )
     
     parser.add_argument(
@@ -184,12 +264,22 @@ Examples:
     
     args = parser.parse_args()
     
+    # Default to all datasets if none specified
+    if args.datasets is None:
+        args.datasets = ["roboflow", "chesspieces_dominique", "corners"]
+    
     print("🏗️  Chess Dataset Preparation Pipeline")
-    print("=" * 50)
+    print("=" * 60)
+    print(f"📊 Target datasets: {', '.join(args.datasets)}")
+    print(f"📁 Data directory: {DATA_FOLDER_PATH}")
+    if not args.skip_download:
+        print("🔄 Mode: Download + Upload")
+    else:
+        print("📤 Mode: Upload only")
     
     if args.dry_run:
         print("🔍 DRY RUN MODE - No actual changes will be made")
-        print()
+    print()
     
     # Check prerequisites
     if not check_prerequisites():
@@ -199,42 +289,55 @@ Examples:
     success_count = 0
     total_steps = 0
     
-    # Step 1 & 2: Download datasets
+    # Download datasets
     if not args.skip_download:
-        total_steps += 2
+        print("\n" + "="*40)
+        print("📥 DATASET DOWNLOAD PHASE")
+        print("="*40)
         
-        if not args.dry_run:
-            # Download Roboflow data
-            if download_roboflow_data():
-                success_count += 1
+        download_functions = {
+             "roboflow": ("Chess Pieces (Roboflow/Kaggle)", download_roboflow_chess_pieces),
+             "chesspieces_dominique": ("Chess Pieces (Dominique)", download_dominique_chess_pieces), 
+             "corners": ("Chessboard Corners", download_chessboard_corners)
+         }
+        
+        for dataset_key in args.datasets:
+            total_steps += 1
+            dataset_name, download_func = download_functions[dataset_key]
             
-            # Download Dominique data  
-            if download_dominique_data():
+            if args.dry_run:
+                print(f"\n📦 Would download: {dataset_name}")
                 success_count += 1
-        else:
-            print("\n📦 Would download and process Roboflow dataset from Kaggle")
-            print("📦 Would download Dominique dataset from Roboflow")
-            success_count += 2
+            else:
+                if download_func():
+                    success_count += 1
     
-    # Step 3: Upload to Hugging Face
+    # Upload to Hugging Face
     if not (args.no_individual and args.no_merged):
         total_steps += 1
         
-        if not args.dry_run:
+        print("\n" + "="*40)
+        print("🚀 HUGGING FACE UPLOAD PHASE") 
+        print("="*40)
+        
+        if args.dry_run:
+            if not args.no_individual:
+                print("\n📤 Would upload individual datasets:")
+                for dataset in args.datasets:
+                    if dataset != "corners":  # corners needs special handling
+                        print(f"   - {dataset}")
+            if not args.no_merged:
+                print("\n📤 Would upload merged chess pieces dataset")
+            success_count += 1
+        else:
             upload_individual = not args.no_individual
             upload_merged = not args.no_merged
             
-            if upload_to_huggingface(upload_individual, upload_merged):
+            if upload_to_huggingface(upload_individual, upload_merged, args.datasets):
                 success_count += 1
-        else:
-            if not args.no_individual:
-                print("\n🚀 Would upload individual datasets to HF")
-            if not args.no_merged:
-                print("🚀 Would upload merged dataset to HF")
-            success_count += 1
     
     # Summary
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     if args.dry_run:
         print("🔍 Dry run completed successfully!")
         print("Run without --dry-run to execute the pipeline.")
@@ -242,11 +345,17 @@ Examples:
         if success_count == total_steps:
             print("🎉 Pipeline completed successfully!")
             print(f"📁 Datasets available locally at: {DATA_FOLDER_PATH}")
-            print(f"🌐 Datasets uploaded to: https://huggingface.co/{HF_USERNAME}")
+            if HF_USERNAME:
+                print(f"🌐 Datasets uploaded to: https://huggingface.co/{HF_USERNAME}")
+            
             print("\n🎯 Next steps:")
-            print("1. Check your Hugging Face profile for the uploaded datasets")
-            print("2. Use the download script to get datasets: python src/data_prep/download_from_hf.py --list")
-            print("3. Start training your chess piece detection models!")
+            print("1. Check your Hugging Face profile for uploaded datasets")
+            print("2. Use download script: python src/data_prep/download_from_hf.py --list")
+            print("3. Start training your models:")
+            if "roboflow" in args.datasets or "chesspieces_dominique" in args.datasets:
+                print("   - Chess piece detection: python -m src.chess_piece_detection.train")
+            if "corners" in args.datasets:
+                print("   - Chessboard corners: python -m src.chess_board_detection.train")
         else:
             print(f"⚠️  Pipeline completed with issues: {success_count}/{total_steps} steps successful")
             return 1
