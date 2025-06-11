@@ -119,14 +119,28 @@ def download_chessboard_corners_dominique():
     print("   🎯 Purpose: Training chessboard corner detection models")
     
     try:
-        # Import the download function
+        # Import the download function and arguments class
         from src.chess_board_detection.download_data import download_roboflow_dataset
+        from argparse import Namespace
+        
+        # Create mock args for the download function
+        args = Namespace(
+            data_dir=str(DATA_FOLDER_PATH / "chessboard_corners"),
+            project="gustoguardian/chess-board-box",
+            version=3,
+            format="yolov8",
+            verbose=False
+        )
         
         # Call the download function
-        dataset_folder = download_roboflow_dataset()
+        dataset_folder = download_roboflow_dataset(args)
         
-        print("✅ Chessboard corners dataset (Dominique) downloaded successfully")
-        return True
+        if dataset_folder:
+            print("✅ Chessboard corners dataset (Dominique) downloaded successfully")
+            return True
+        else:
+            print("❌ Download failed - no dataset folder returned")
+            return False
         
     except Exception as e:
         print(f"❌ Error downloading chessboard corners dataset (Dominique): {e}")
