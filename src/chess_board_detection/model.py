@@ -13,151 +13,286 @@ from src.base_model import BaseYOLOModel
 
 
 class ChessBoardModel(BaseYOLOModel):
-    """Model for detecting chessboard corners using YOLO."""
+    """Model for detecting chessboard using YOLO segmentation to get precise polygon coordinates."""
     
     def __init__(self, model_path: Path | None = None, device: torch.device | None = None):
         super().__init__(model_path, device)
-        self.expected_corners = 4
+        self.expected_boards = 1  # Expect exactly 1 chessboard
+        
+        # Override default model to use segmentation if no model path provided
+        if model_path is None or not model_path.exists():
+            from ultralytics import YOLO
+            # Use YOLOv11 segmentation model as default for chessboard detection
+            self.model = YOLO('yolo11n-seg.pt')  # Use segmentation model
+            self.model.to(self.device)
 
-    def predict_corners(self, img_path, conf=0.25):
+    def predict_board(self, img_path, conf=0.25):
         """
-        Predict chessboard corners and validate the count.
+        Predict chessboard segmentation and validate the count.
         
         Args:
             img_path: Path to the image to analyze
             conf: Confidence threshold for predictions
             
         Returns:
-            tuple: (results, corner_count, is_valid)
+            tuple: (results, board_count, is_valid)
                 - results: YOLO prediction results
-                - corner_count: Number of detected corners
-                - is_valid: True if exactly 4 corners detected
+                - board_count: Number of detected boards
+                - is_valid: True if exactly 1 board detected
         """
         results = self.predict(img_path, conf=conf)
         
-        # Count detected corners
-        corner_count = 0
-        if results.boxes is not None:
-            corner_count = len(results.boxes)
+        # Count detected boards
+        board_count = 0
+        if results.masks is not None:
+            board_count = len(results.masks)
         
-        # Validate corner count
-        is_valid = corner_count == self.expected_corners
+        # Validate board count
+        is_valid = board_count == self.expected_boards
         
         if not is_valid:
-            if corner_count < self.expected_corners:
+            if board_count < self.expected_boards:
                 warnings.warn(
-                    f"⚠️  Only {corner_count} corners detected (expected {self.expected_corners}). "
+                    f"⚠️  Only {board_count} boards detected (expected {self.expected_boards}). "
                     f"Try lowering the confidence threshold or check if the chessboard is fully visible.",
                     UserWarning
                 )
             else:
                 warnings.warn(
-                    f"⚠️  {corner_count} corners detected (expected {self.expected_corners}). "
+                    f"⚠️  {board_count} boards detected (expected {self.expected_boards}). "
                     f"Try raising the confidence threshold or check for false positives.",
                     UserWarning
                 )
         else:
-            print(f"✅ Successfully detected {corner_count} chessboard corners")
+            print(f"✅ Successfully detected {board_count} chessboard")
         
-        return results, corner_count, is_valid
+        return results, board_count, is_valid
 
-    def get_corner_coordinates(self, img_path, conf=0.25):
+    def get_board_polygon(self, img_path, conf=0.25):
         """
-        Get the coordinates of detected corners.
+        Get the polygon coordinates of the detected chessboard.
         
         Args:
             img_path: Path to the image to analyze
             conf: Confidence threshold for predictions
             
         Returns:
-            tuple: (coordinates, is_valid)
-                - coordinates: List of (x, y) tuples for each corner center
-                - is_valid: True if exactly 4 corners detected
+            tuple: (polygon_coords, is_valid)
+                - polygon_coords: List of (x, y) tuples forming the board polygon
+                - is_valid: True if exactly 1 board detected
         """
-        results, corner_count, is_valid = self.predict_corners(img_path, conf=conf)
+        results, board_count, is_valid = self.predict_board(img_path, conf=conf)
         
-        coordinates = []
-        if results.boxes is not None:
-            for box in results.boxes:
-                # Get box coordinates and calculate center
-                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                center_x = (x1 + x2) / 2
-                center_y = (y1 + y2) / 2
+        polygon_coords = []
+        if results.masks is not None and len(results.masks) > 0:
+            # Get the first (and hopefully only) mask
+            mask = results.masks[0]
+            
+            # Get polygon coordinates in original image dimensions
+            if hasattr(mask, 'xy') and len(mask.xy) > 0:
+                # mask.xy contains the polygon coordinates
+                coords = mask.xy[0]  # First polygon (there should be only one)
                 
-                # Get confidence
-                confidence = float(box.conf[0].cpu().numpy())
+                # Convert to list of coordinate dictionaries
+                for i in range(len(coords)):
+                    x, y = coords[i]
+                    polygon_coords.append({
+                        'x': float(x),
+                        'y': float(y)
+                    })
                 
-                coordinates.append({
-                    'x': float(center_x),
-                    'y': float(center_y),
+                # Get confidence from detection
+                if results.boxes is not None and len(results.boxes) > 0:
+                    confidence = float(results.boxes[0].conf[0].cpu().numpy())
+                else:
+                    confidence = 1.0  # Default confidence
+                
+                # Add confidence to polygon info
+                polygon_info = {
+                    'coordinates': polygon_coords,
                     'confidence': confidence,
-                    'bbox': [float(x1), float(y1), float(x2), float(y2)]
-                })
+                    'num_points': len(polygon_coords)
+                }
+                
+                return polygon_info, is_valid
         
-        # Sort corners by confidence (highest first)
-        coordinates.sort(key=lambda c: c['confidence'], reverse=True)
-        
-        return coordinates, is_valid
+        return {}, is_valid
 
-    def order_corners(self, coordinates):
+    def get_corner_coordinates(self, img_path, conf=0.25):
         """
-        Order corners in a consistent manner: top-left, top-right, bottom-right, bottom-left.
+        Get 4-corner coordinates from the chessboard polygon for perspective transformation.
         
         Args:
-            coordinates: List of coordinate dictionaries from get_corner_coordinates
+            img_path: Path to the image to analyze
+            conf: Confidence threshold for predictions
             
         Returns:
-            list: Ordered coordinates [top-left, top-right, bottom-right, bottom-left]
+            tuple: (corners, is_valid)
+                - corners: Dictionary with 4 corners in format expected by perspective transform
+                - is_valid: True if exactly 1 board detected
         """
-        if len(coordinates) != 4:
-            warnings.warn(f"Cannot order {len(coordinates)} corners. Need exactly 4 corners.", UserWarning)
-            return coordinates
+        polygon_info, is_valid = self.get_board_polygon(img_path, conf=conf)
         
-        # Convert to numpy array for easier manipulation
-        points = np.array([[c['x'], c['y']] for c in coordinates])
+        if not is_valid or not polygon_info:
+            return {}, is_valid
         
-        # Order points: top-left, top-right, bottom-right, bottom-left
-        # Sum and difference will help us identify corners
-        sum_coords = points.sum(axis=1)
-        diff_coords = np.diff(points, axis=1).flatten()
+        coords = polygon_info['coordinates']
+        if len(coords) < 4:
+            warnings.warn(f"Polygon has only {len(coords)} points, need at least 4 for corner detection", UserWarning)
+            return {}, False
         
-        # Top-left has smallest sum, bottom-right has largest sum
-        top_left_idx = np.argmin(sum_coords)
-        bottom_right_idx = np.argmax(sum_coords)
+        # Convert to numpy array for processing
+        points = np.array([[c['x'], c['y']] for c in coords])
         
-        # Top-right has smallest difference (x-y), bottom-left has largest difference
-        top_right_idx = np.argmin(diff_coords)
-        bottom_left_idx = np.argmax(diff_coords)
+        # Find the 4 corners using convex hull or corner detection
+        corners = self._extract_four_corners(points)
         
-        ordered_coordinates = [
-            coordinates[top_left_idx],      # top-left
-            coordinates[top_right_idx],     # top-right  
-            coordinates[bottom_right_idx],  # bottom-right
-            coordinates[bottom_left_idx]    # bottom-left
-        ]
+        # Order corners: top-left, top-right, bottom-right, bottom-left  
+        ordered_corners = self._order_corners(corners)
         
-        return ordered_coordinates
+        # Create corner dictionary with the expected format
+        corner_dict = {
+            'top_left': {'x': float(ordered_corners[0][0]), 'y': float(ordered_corners[0][1])},
+            'top_right': {'x': float(ordered_corners[1][0]), 'y': float(ordered_corners[1][1])},
+            'bottom_right': {'x': float(ordered_corners[2][0]), 'y': float(ordered_corners[2][1])},
+            'bottom_left': {'x': float(ordered_corners[3][0]), 'y': float(ordered_corners[3][1])},
+            'confidence': polygon_info['confidence'],
+            'corners_array': ordered_corners.tolist()  # For easy homography calculation
+        }
+        
+        return corner_dict, is_valid
+
+    def _extract_four_corners(self, points):
+        """Extract 4 corner points from a polygon."""
+        from scipy.spatial import ConvexHull
+        
+        try:
+            # Use convex hull to get the outer boundary
+            hull = ConvexHull(points)
+            hull_points = points[hull.vertices]
+            
+            # If we have exactly 4 points, return them
+            if len(hull_points) == 4:
+                return hull_points
+            
+            # If we have more than 4 points, find the 4 most extreme corners
+            # Using a simpler approach: find corners based on distance from center
+            center = np.mean(hull_points, axis=0)
+            
+            # Calculate angles from center to each point
+            angles = np.arctan2(hull_points[:, 1] - center[1], hull_points[:, 0] - center[0])
+            
+            # Sort by angle and take 4 points that are most spread out
+            angle_indices = np.argsort(angles)
+            sorted_points = hull_points[angle_indices]
+            
+            # Select 4 points that are roughly 90 degrees apart
+            n_points = len(sorted_points)
+            corner_indices = [
+                0,  # First point
+                n_points // 4,  # Quarter way around
+                n_points // 2,  # Halfway around  
+                3 * n_points // 4  # Three quarters around
+            ]
+            
+            # Ensure indices are within bounds
+            corner_indices = [min(i, n_points - 1) for i in corner_indices]
+            
+            corners = sorted_points[corner_indices]
+            return corners
+            
+        except Exception as e:
+            warnings.warn(f"Could not extract corners using convex hull: {e}. Using extreme points.", UserWarning)
+            # Fallback: use extreme points
+            return self._get_extreme_points(points)
+    
+    def _get_extreme_points(self, points):
+        """Get 4 extreme points as corners."""
+        # Find extreme points
+        min_x_idx = np.argmin(points[:, 0])
+        max_x_idx = np.argmax(points[:, 0])
+        min_y_idx = np.argmin(points[:, 1])
+        max_y_idx = np.argmax(points[:, 1])
+        
+        # Get the 4 extreme points
+        extreme_points = points[[min_x_idx, max_x_idx, min_y_idx, max_y_idx]]
+        
+        # Remove duplicates and ensure we have 4 points
+        unique_points = []
+        for point in extreme_points:
+            is_duplicate = False
+            for existing in unique_points:
+                if np.linalg.norm(point - existing) < 5:  # 5 pixel tolerance
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                unique_points.append(point)
+        
+        # If we don't have 4 unique points, add more from the polygon
+        if len(unique_points) < 4:
+            for point in points:
+                is_duplicate = False
+                for existing in unique_points:
+                    if np.linalg.norm(point - existing) < 5:
+                        is_duplicate = True
+                        break
+                if not is_duplicate:
+                    unique_points.append(point)
+                    if len(unique_points) == 4:
+                        break
+        
+        return np.array(unique_points[:4])
+
+    def _order_corners(self, corners):
+        """Order corners in clockwise order: top-left, top-right, bottom-right, bottom-left."""
+        # Calculate centroid
+        center = np.mean(corners, axis=0)
+        
+        # Calculate angle from center to each corner
+        angles = np.arctan2(corners[:, 1] - center[1], corners[:, 0] - center[0])
+        
+        # Sort corners by angle (this gives us a consistent ordering)
+        sorted_indices = np.argsort(angles)
+        sorted_corners = corners[sorted_indices]
+        
+        # Find which corner is top-left (minimum sum of coordinates)
+        sums = np.sum(sorted_corners, axis=1)
+        top_left_idx = np.argmin(sums)
+        
+        # Reorder starting from top-left, going clockwise
+        ordered_corners = np.roll(sorted_corners, -top_left_idx, axis=0)
+        
+        # Verify the order is correct (top-left should have min x+y, bottom-right should have max x+y)
+        sums = np.sum(ordered_corners, axis=1)
+        if sums[0] > sums[2]:  # If our "top-left" has a larger sum than "bottom-right", we need to reverse
+            ordered_corners = ordered_corners[::-1]
+            # Also need to shift to start from correct top-left
+            sums = np.sum(ordered_corners, axis=1)
+            top_left_idx = np.argmin(sums)
+            ordered_corners = np.roll(ordered_corners, -top_left_idx, axis=0)
+        
+        return ordered_corners
 
     def plot_eval(self, img_path, ax=None, conf=0.25, show_polygon=True, show_centers=True):
         """
-        Plot evaluation results with corner detections and optional chessboard outline.
+        Plot evaluation results with chessboard segmentation and polygon outline.
         
         Args:
             img_path: Path to the image to evaluate
             ax: Matplotlib axes to plot on (creates new if None)
             conf: Confidence threshold for predictions
-            show_polygon: Whether to draw lines connecting the corners
+            show_polygon: Whether to draw the chessboard polygon
             show_centers: Whether to show corner center points
             
         Returns:
             ax: The matplotlib axes used for plotting
         """
-        results, corner_count, is_valid = self.predict_corners(img_path, conf=conf)
+        results, board_count, is_valid = self.predict_board(img_path, conf=conf)
         
         # Print detection info
-        print(f"Detected corners: {corner_count}/4")
+        print(f"Detected chessboards: {board_count}/1")
         if results.names:
-            print("Detection target: chessboard corners")
+            print("Detection target: chessboard")
 
         # Use provided axes or create a new one
         if ax is None:
@@ -170,68 +305,71 @@ class ChessBoardModel(BaseYOLOModel):
         image_rgb = cv2.cvtColor(results.orig_img, cv2.COLOR_BGR2RGB)
         ax.imshow(image_rgb)
 
-        # Draw corner detections
-        corner_coords = []
-        if results.boxes is not None:
-            for i, box in enumerate(results.boxes):
-                # Get box coordinates
-                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                center_x = (x1 + x2) / 2
-                center_y = (y1 + y2) / 2
-                corner_coords.append([center_x, center_y])
+        # Draw segmentation mask and polygon
+        if results.masks is not None and len(results.masks) > 0:
+            mask = results.masks[0]
+            
+            # Draw the segmentation mask
+            if hasattr(mask, 'data'):
+                mask_data = mask.data[0].cpu().numpy()
+                # Create a colored overlay for the mask
+                overlay = np.zeros_like(image_rgb)
+                overlay[:, :, 1] = mask_data * 255  # Green channel
+                # Blend with original image
+                alpha = 0.3
+                image_rgb = image_rgb * (1 - alpha) + overlay * alpha
+                ax.imshow(image_rgb.astype(np.uint8))
+            
+            # Draw polygon outline
+            if hasattr(mask, 'xy') and len(mask.xy) > 0:
+                polygon_coords = mask.xy[0]  # Get the polygon coordinates
                 
-                # Get confidence
-                conf_val = float(box.conf[0].cpu().numpy())
-                label = f"Corner {i+1} ({conf_val:.2f})"
-
-                # Draw bounding box
-                rect = Rectangle(
-                    (x1, y1), x2 - x1, y2 - y1, 
-                    fill=False, color="red", linewidth=2
-                )
-                ax.add_patch(rect)
-
-                # Add label
-                ax.text(
-                    x1, y1 - 5, label, color="red", 
-                    bbox=dict(facecolor="white", alpha=0.7)
-                )
+                # Draw the full polygon
+                if show_polygon:
+                    polygon = Polygon(polygon_coords, fill=False, edgecolor='red', 
+                                    linewidth=3, linestyle='-', alpha=0.8)
+                    ax.add_patch(polygon)
                 
-                # Show center point if requested
-                if show_centers:
-                    ax.plot(center_x, center_y, 'ro', markersize=8, markerfacecolor='yellow', 
-                           markeredgecolor='red', markeredgewidth=2)
-
-        # Draw polygon connecting corners if we have exactly 4 and show_polygon is True
-        if show_polygon and len(corner_coords) == 4:
-            try:
-                # Order the corners properly
-                coordinates, _ = self.get_corner_coordinates(img_path, conf=conf)
-                ordered_corners = self.order_corners(coordinates)
+                # Get and show the 4 corners
+                try:
+                    corners_dict, _ = self.get_corner_coordinates(img_path, conf=conf)
+                    if corners_dict and show_centers:
+                        # Draw the 4 corners
+                        corner_names = ['top_left', 'top_right', 'bottom_right', 'bottom_left']
+                        colors = ['red', 'blue', 'green', 'orange']
+                        
+                        for i, (corner_name, color) in enumerate(zip(corner_names, colors)):
+                            if corner_name in corners_dict:
+                                corner = corners_dict[corner_name]
+                                ax.plot(corner['x'], corner['y'], 'o', color=color, markersize=10, 
+                                       markerfacecolor=color, markeredgecolor='white', markeredgewidth=2)
+                                ax.text(corner['x'], corner['y'] - 20, f"{corner_name.replace('_', ' ').title()}", 
+                                       color=color, fontsize=10, ha='center', 
+                                       bbox=dict(facecolor='white', alpha=0.7))
+                        
+                        # Draw lines connecting the corners to show the quadrilateral
+                        if show_polygon and len(corners_dict.get('corners_array', [])) == 4:
+                            corner_points = corners_dict['corners_array']
+                            corner_polygon = Polygon(corner_points, fill=False, edgecolor='blue', 
+                                                   linewidth=2, linestyle='--', alpha=0.7)
+                            ax.add_patch(corner_polygon)
+                            print("✅ Drew chessboard 4-corner outline")
+                        
+                except Exception as e:
+                    print(f"⚠️  Could not extract 4 corners: {e}")
                 
-                # Extract ordered points
-                ordered_points = [[c['x'], c['y']] for c in ordered_corners]
-                
-                # Create polygon
-                polygon = Polygon(ordered_points, fill=False, edgecolor='blue', 
-                                linewidth=3, linestyle='--', alpha=0.7)
-                ax.add_patch(polygon)
-                
-                print("✅ Drew chessboard outline connecting ordered corners")
-                
-            except Exception as e:
-                # Fallback: just connect corners in detection order
-                polygon = Polygon(corner_coords, fill=False, edgecolor='orange', 
-                                linewidth=2, linestyle='--', alpha=0.5)
-                ax.add_patch(polygon)
-                print(f"⚠️  Drew outline in detection order (couldn't order properly: {e})")
+                # Add confidence info
+                if results.boxes is not None and len(results.boxes) > 0:
+                    conf_val = float(results.boxes[0].conf[0].cpu().numpy())
+                    ax.text(10, 30, f"Confidence: {conf_val:.2f}", color="white", fontsize=12,
+                           bbox=dict(facecolor="black", alpha=0.7))
 
         # Set title based on detection quality
         if is_valid:
-            ax.set_title("✅ Chessboard Corner Detection - 4 corners detected", color='green')
+            ax.set_title("✅ Chessboard Segmentation - Board detected", color='green', fontsize=14)
         else:
-            ax.set_title(f"⚠️  Chessboard Corner Detection - {corner_count} corners detected (expected 4)", 
-                        color='orange')
+            ax.set_title(f"⚠️  Chessboard Segmentation - {board_count} boards detected (expected 1)", 
+                        color='orange', fontsize=14)
 
         ax.axis("off")
         

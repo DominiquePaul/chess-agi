@@ -130,10 +130,11 @@ def validate_args(args) -> bool:
         return False
     
     # Check if model file exists (skip for HuggingFace models)
-    if not ("/" in args.model and not Path(args.model).exists()):
-        # This might be a HuggingFace model ID (contains /)
+    if "/" in args.model and not Path(args.model).exists():
+        # This might be a HuggingFace model ID (contains /), skip local file validation
         pass
     else:
+        # Check local model file
         model_path = Path(args.model)
         if not model_path.exists():
             print(f"❌ Error: Model file '{model_path}' does not exist!")
@@ -191,23 +192,29 @@ def test_single_image(model, image_path: Path, args) -> Optional[Dict]:
         if args.verbose:
             print(f"🔍 Processing image: {image_path}")
         
-        # Get corner coordinates
-        corners = model.get_corner_coordinates(str(image_path))
+        # Get corner coordinates (now returns a dictionary with 4 corners)
+        corners_dict, is_valid = model.get_corner_coordinates(str(image_path))
         
         # Create results dictionary
         results = {
             "image": str(image_path),
-            "corners_detected": len(corners) > 0,
-            "corners": corners
+            "corners_detected": bool(corners_dict),
+            "corners": corners_dict,
+            "is_valid": is_valid
         }
         
         if args.verbose:
-            if corners:
-                print(f"✅ Detected {len(corners)} corners")
-                for i, (x, y) in enumerate(corners):
-                    print(f"   Corner {i+1}: ({x:.1f}, {y:.1f})")
+            if corners_dict:
+                print(f"✅ Detected chessboard with 4 corners")
+                corner_names = ['top_left', 'top_right', 'bottom_right', 'bottom_left']
+                for corner_name in corner_names:
+                    if corner_name in corners_dict:
+                        corner = corners_dict[corner_name]
+                        print(f"   {corner_name.replace('_', ' ').title()}: ({corner['x']:.1f}, {corner['y']:.1f})")
+                if 'confidence' in corners_dict:
+                    print(f"   Confidence: {corners_dict['confidence']:.2f}")
             else:
-                print("⚠️  No corners detected")
+                print("⚠️  No chessboard detected")
         
         # Save visualization if requested
         if not args.no_save:
@@ -218,7 +225,13 @@ def test_single_image(model, image_path: Path, args) -> Optional[Dict]:
             output_path = output_dir / output_filename
             
             try:
-                model.plot_eval(str(image_path), save_path=str(output_path))
+                import matplotlib.pyplot as plt
+                # Create new figure for saving
+                fig, ax = plt.subplots(figsize=(10, 10))
+                model.plot_eval(str(image_path), ax=ax)
+                plt.savefig(output_path, bbox_inches='tight', dpi=150)
+                plt.close(fig)  # Close figure to free memory
+                
                 if args.verbose:
                     print(f"💾 Saved result to: {output_path}")
                 results["output_image"] = str(output_path)
