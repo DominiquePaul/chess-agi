@@ -54,7 +54,6 @@ def download_roboflow_dataset():
         # Download the dataset
         print(f"⬇️  Downloading dataset to: {DATA_DIR}")
         dataset.download(
-            format=FORMAT,
             location=str(DATA_DIR),
             overwrite=True
         )

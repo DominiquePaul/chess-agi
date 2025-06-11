@@ -183,23 +183,30 @@ def upload_to_huggingface(upload_individual=True, upload_merged=True, datasets_t
                     print("    ⚠️  Chessboard Corners dataset not found, skipping")
         
         if upload_merged:
-            print("  📤 Uploading merged chess pieces dataset...")
+            # Only attempt to merge if chess piece datasets are being processed
+            chess_piece_datasets = ["roboflow", "chesspieces_dominique"]
+            has_chess_pieces = any(dataset in chess_piece_datasets for dataset in (datasets_to_upload or []))
             
-            available_datasets = []
-            if (DATA_FOLDER_PATH / "chess_pieces_dominique").exists():
-                available_datasets.append("chess_pieces_dominique")
-            if (DATA_FOLDER_PATH / "chess_pieces_roboflow").exists():
-                available_datasets.append("chess_pieces_roboflow")
-            
-            if len(available_datasets) >= 2:
-                print(f"    🔄 Merging datasets: {', '.join(available_datasets)}")
-                uploader.merge_and_upload_datasets(
-                    dataset_names=available_datasets,
-                    repo_name="chess-pieces-merged", 
-                    description="Comprehensive chess piece detection dataset combining multiple high-quality sources. This merged dataset provides more training data and better generalization for chess piece detection models."
-                )
+            if has_chess_pieces:
+                print("  📤 Uploading merged chess pieces dataset...")
+                
+                available_datasets = []
+                if (DATA_FOLDER_PATH / "chess_pieces_dominique").exists():
+                    available_datasets.append("chess_pieces_dominique")
+                if (DATA_FOLDER_PATH / "chess_pieces_roboflow").exists():
+                    available_datasets.append("chess_pieces_roboflow")
+                
+                if len(available_datasets) >= 2:
+                    print(f"    🔄 Merging datasets: {', '.join(available_datasets)}")
+                    uploader.merge_and_upload_datasets(
+                        dataset_names=available_datasets,
+                        repo_name="chess-pieces-merged", 
+                        description="Comprehensive chess piece detection dataset combining multiple high-quality sources. This merged dataset provides more training data and better generalization for chess piece detection models."
+                    )
+                else:
+                    print(f"    ⚠️  Need at least 2 chess piece datasets to merge, found {len(available_datasets)}")
             else:
-                print(f"    ⚠️  Need at least 2 datasets to merge, found {len(available_datasets)}")
+                print("  ⏭️  Skipping merged dataset upload (no chess piece datasets in target list)")
         
         print("✅ Dataset uploads completed!")
         return True
