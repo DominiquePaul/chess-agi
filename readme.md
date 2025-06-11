@@ -104,13 +104,13 @@ If you want to recreate the datasets from scratch (for development or to upload 
 #### Step-by-step recreation
 
 ```bash
-# Complete pipeline: download ALL datasets (chess pieces + corners_dominique) and upload
+# Complete pipeline: download ALL datasets (chess pieces + chessboard_corners_dominique) and upload
 python src/data_prep/prepare_and_upload_datasets.py
 
 # Download only specific datasets:
-python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow dominique  # Chess pieces only
-python src/data_prep/prepare_and_upload_datasets.py --datasets corners_dominique             # Corners only
-python src/data_prep/prepare_and_upload_datasets.py --datasets dominique           # Single dataset
+python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow chesspieces_dominique  # Chess pieces only
+python src/data_prep/prepare_and_upload_datasets.py --datasets chessboard_corners_dominique             # Corners only
+python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_dominique # Single dataset
 
 # Alternative options:
 python src/data_prep/prepare_and_upload_datasets.py --dry-run           # See what would be done
@@ -125,7 +125,7 @@ python src/data_prep/prepare_and_upload_datasets.py --skip-download     # Only u
 - **`dominique`**: Downloads the complementary dataset from Roboflow with additional chess piece images  
 
 **Chessboard Corner Detection Dataset:**
-- **`corners_dominique`**: Downloads chessboard corner detection dataset from Roboflow (`gustoguardian/chess-board-box/3`) with 4 corners per board (Dominique)
+- **`chessboard_corners_dominique`**: Downloads chessboard corner detection dataset from Roboflow (`gustoguardian/chess-board-box/3`) with 4 corners per board (Dominique)
 
 **Upload Phase:**
 - Uploads datasets individually and creates a merged version (for chess pieces) on Hugging Face for easy access
