@@ -140,7 +140,61 @@ class ChessModel:
         else:
             raise FileNotFoundError(f"Model not found at {self.model_path}")
 
-    def train(self, data_path: Path, epochs: int = 15, batch: int = 32, lr0: float = 0.0001, lrf: float = 0.1, imgsz: int = 640, plots: bool = True, project: Path | None = None, name: str | None = None):
+    def train(self, data_path: Path, epochs: int = 15, batch: int = 32, lr0: float = 0.0001, lrf: float = 0.1, 
+              imgsz: int = 640, plots: bool = True, project: Path | None = None, name: str | None = None,
+              # Additional training parameters
+              save_period: int = -1, patience: int = 50, optimizer: str = 'auto', weight_decay: float = 0.0005,
+              # Data augmentation parameters
+              hsv_h: float = 0.015, hsv_s: float = 0.7, hsv_v: float = 0.4,
+              degrees: float = 0.0, translate: float = 0.1, scale: float = 0.5, shear: float = 0.0,
+              perspective: float = 0.0, flipud: float = 0.0, fliplr: float = 0.5,
+              mosaic: float = 1.0, mixup: float = 0.0, copy_paste: float = 0.0,
+              # Advanced training parameters  
+              warmup_epochs: float = 3.0, warmup_momentum: float = 0.8, warmup_bias_lr: float = 0.1,
+              box: float = 7.5, cls: float = 0.5, dfl: float = 1.5,
+              **kwargs):
+        """
+        Train the YOLO model with extensive customization options.
+        
+        Args:
+            data_path: Path to dataset YAML file
+            epochs: Number of epochs to train for
+            batch: Batch size for training
+            lr0: Initial learning rate
+            lrf: Final learning rate (lr0 * lrf)
+            imgsz: Input image size
+            plots: Save plots during training
+            project: Project name for saving runs
+            name: Run name for saving
+            save_period: Save checkpoint every x epochs (-1 to disable)
+            patience: Epochs to wait for no improvement before early stopping
+            optimizer: Optimizer to use ('SGD', 'Adam', 'AdamW', 'NAdam', 'RAdam', 'RMSProp', 'auto')
+            weight_decay: Weight decay for regularization
+            
+            # Data augmentation
+            hsv_h: HSV hue augmentation (fraction)
+            hsv_s: HSV saturation augmentation (fraction)
+            hsv_v: HSV value augmentation (fraction)
+            degrees: Image rotation (+/- degrees)
+            translate: Image translation (+/- fraction)
+            scale: Image scale (+/- gain)
+            shear: Image shear (+/- degrees)
+            perspective: Image perspective (+/- fraction)
+            flipud: Vertical flip (probability)
+            fliplr: Horizontal flip (probability)
+            mosaic: Mosaic augmentation (probability)
+            mixup: MixUp augmentation (probability)
+            copy_paste: Copy-paste augmentation (probability)
+            
+            # Advanced parameters
+            warmup_epochs: Warmup epochs
+            warmup_momentum: Warmup initial momentum
+            warmup_bias_lr: Warmup initial bias learning rate
+            box: Box loss gain
+            cls: Classification loss gain
+            dfl: Distribution focal loss gain
+            **kwargs: Additional arguments passed to YOLO.train()
+        """
         results = self.model.train(
             data=data_path,
             epochs=epochs,
@@ -152,17 +206,32 @@ class ChessModel:
             device=self.device,
             project=project,
             name=name,
-            ### Augmentation parameters
-            # hsv_h=0.015,        # HSV hue augmentation (fraction)
-            # hsv_s=0.7,          # HSV saturation augmentation (fraction)
-            # hsv_v=0.4,          # HSV value augmentation (fraction)
-            # scale=0.2,          # Image scale (+/- gain)
-            # flipud=0.0,         # Vertical flip (probability)
-            # fliplr=0.5,         # Horizontal flip (probability)
-            ### Exposure augmentations
-            # exposure=0.2,       # Exposure adjustment (+/- fraction)
-            # gamma=0.5,          # Gamma correction range (0.5-1.5)
-            # contrast=0.4,       # Contrast adjustment (+/- fraction)
+            save_period=save_period,
+            patience=patience,
+            optimizer=optimizer,
+            weight_decay=weight_decay,
+            # Data augmentation
+            hsv_h=hsv_h,
+            hsv_s=hsv_s,
+            hsv_v=hsv_v,
+            degrees=degrees,
+            translate=translate,
+            scale=scale,
+            shear=shear,
+            perspective=perspective,
+            flipud=flipud,
+            fliplr=fliplr,
+            mosaic=mosaic,
+            mixup=mixup,
+            copy_paste=copy_paste,
+            # Advanced parameters
+            warmup_epochs=warmup_epochs,
+            warmup_momentum=warmup_momentum,
+            warmup_bias_lr=warmup_bias_lr,
+            box=box,
+            cls=cls,
+            dfl=dfl,
+            **kwargs
         )
         return results
 

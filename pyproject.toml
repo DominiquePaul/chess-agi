@@ -21,6 +21,7 @@ dependencies = [
     "opencv-python>=4.11.0.86",
     "pillow>=11.2.1",
     "pipwin>=0.5.2",
+    "pyyaml>=6.0.2",
     "roboflow>=1.1.64",
     "ruff>=0.11.10",
     "svglib>=1.5.1",

@@ -4,10 +4,10 @@ This script downloads the processed datasets and saves them locally in YOLOv8 fo
 """
 
 import os
+import yaml
 import argparse
 from pathlib import Path
 from typing import List, Optional
-import yaml
 from datasets import load_dataset
 from dotenv import load_dotenv
 from PIL import Image
@@ -91,14 +91,28 @@ def convert_hf_to_yolo(dataset, output_dir: Path, dataset_name: str):
                 # Save labels
                 label_path = labels_dir / f"{image_id}.txt"
                 with open(label_path, 'w') as f:
-                    for annotation in example["annotations"]:
-                        class_id = annotation["class_id"]
-                        x_center = annotation["x_center"] 
-                        y_center = annotation["y_center"]
-                        width = annotation["width"]
-                        height = annotation["height"]
-                        
-                        f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
+                    annotations = example["annotations"]
+                    # Handle the case where annotations is a dict with lists
+                    if isinstance(annotations, dict) and "class_id" in annotations:
+                        num_objects = len(annotations["class_id"])
+                        for j in range(num_objects):
+                            class_id = annotations["class_id"][j]
+                            x_center = annotations["x_center"][j]
+                            y_center = annotations["y_center"][j]
+                            width = annotations["width"][j]
+                            height = annotations["height"][j]
+                            
+                            f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
+                    else:
+                        # Handle the case where annotations is a list of dicts (fallback)
+                        for annotation in annotations:
+                            class_id = annotation["class_id"]
+                            x_center = annotation["x_center"] 
+                            y_center = annotation["y_center"]
+                            width = annotation["width"]
+                            height = annotation["height"]
+                            
+                            f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
                 
                 # Progress indicator
                 if (i + 1) % 100 == 0:

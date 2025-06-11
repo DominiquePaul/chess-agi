@@ -11,11 +11,16 @@
 - [ ] Train ACT policy on dataset
 - [ ] Control-loop for playing a game
 - [ ] Needs to detect whether other player made a move
+- [ ] Add optional voice over comment with the voice of Borat
 
 
-## Where to find what in this repo
+# Setup
 
-tbd
+```
+pip install uv
+uv sync
+```
+
 
 ## Download chess piece data
 
