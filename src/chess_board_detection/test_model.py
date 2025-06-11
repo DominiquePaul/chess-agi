@@ -283,7 +283,7 @@ def main():
     print("🧠 ChessBoard Corner Detection - Model Testing")
     print("=" * 50)
     
-    model = load_model(Path(args.model), args.verbose)
+    model = load_model(args.model, args.verbose)
     if not model:
         sys.exit(1)
     
