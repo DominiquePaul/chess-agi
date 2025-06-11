@@ -78,6 +78,102 @@ def get_api_key():
     
     return api_key
 
+def fix_data_yaml_paths(data_yaml_path: Path, data_dir: Path, dataset_folder: Path):
+    """Fix the paths in data.yaml files to work with the project structure.
+    
+    Roboflow downloads create relative paths like '../train/images' which don't work 
+    when training from the project root. This function fixes those paths to be 
+    relative to where the data.yaml file will be accessed from (data_dir).
+    """
+    if not data_yaml_path.exists():
+        return
+    
+    try:
+        # Read the current data.yaml
+        with open(data_yaml_path, 'r') as f:
+            data_config = yaml.safe_load(f)
+        
+        # Calculate the relative path from data_dir to the dataset folder
+        # The data.yaml will be accessed from data_dir, so paths should be relative to that
+        dataset_name = dataset_folder.name  # e.g., "chess-board-box-3"
+        
+        # Fix the paths - convert relative paths to be relative to data_dir
+        fixed_paths = {}
+        paths_were_fixed = False
+        
+        for split in ['train', 'val', 'test']:
+            if split in data_config:
+                original_path = data_config[split]
+                
+                # Convert paths like '../train/images' to 'chess-board-box-3/train/images'
+                # This will be relative to data_dir where the data.yaml is accessed from
+                if original_path.startswith('../'):
+                    # Remove the '../' and get the folder name (e.g., 'train/images')
+                    folder_part = original_path[3:]  # Remove '../'
+                    # Create path relative to data_dir
+                    fixed_path = f"{dataset_name}/{folder_part}"
+                    fixed_paths[split] = fixed_path
+                    paths_were_fixed = True
+                    print(f"🔧 Fixed {split} path: {original_path} → {fixed_path}")
+                else:
+                    # Path is already in correct format
+                    fixed_paths[split] = original_path
+        
+        # Only update if we actually fixed something
+        if paths_were_fixed:
+            # Update the config with fixed paths
+            for split, path in fixed_paths.items():
+                data_config[split] = path
+            
+            # Write the updated data.yaml back to the original location
+            with open(data_yaml_path, 'w') as f:
+                yaml.dump(data_config, f, default_flow_style=False)
+            
+            # Create/update the data.yaml in data_dir with the same fixed paths
+            # This is the file that will be used for training
+            easy_access_path = data_dir / "data.yaml"
+            with open(easy_access_path, 'w') as f:
+                yaml.dump(data_config, f, default_flow_style=False)
+            print(f"✅ Updated data.yaml files with paths relative to data directory")
+        else:
+            print(f"ℹ️  No path fixes needed")
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Could not fix data.yaml paths: {e}")
+        # Fallback: create a fixed version manually based on known structure
+        try:
+            fallback_fix_data_yaml(data_yaml_path, data_dir, dataset_folder)
+        except Exception as fallback_error:
+            print(f"⚠️  Fallback fix also failed: {fallback_error}")
+
+
+def fallback_fix_data_yaml(data_yaml_path: Path, data_dir: Path, dataset_folder: Path):
+    """Fallback function to fix data.yaml when the main function fails."""
+    with open(data_yaml_path, 'r') as f:
+        data_config = yaml.safe_load(f)
+    
+    # Manual path construction for common scenarios
+    dataset_name = dataset_folder.name  # e.g., "chess-board-box-3"
+    
+    # Fix the paths to be relative to data_dir (where data.yaml will be accessed from)
+    fixed_config = data_config.copy()
+    for split in ['train', 'val', 'test']:
+        if split in fixed_config and fixed_config[split].startswith('../'):
+            # Convert '../train/images' to 'chess-board-box-3/train/images'
+            folder_part = fixed_config[split][3:]  # Remove '../'
+            fixed_config[split] = f"{dataset_name}/{folder_part}"
+    
+    # Write both files
+    with open(data_yaml_path, 'w') as f:
+        yaml.dump(fixed_config, f, default_flow_style=False)
+    
+    easy_access_path = data_dir / "data.yaml"
+    with open(easy_access_path, 'w') as f:
+        yaml.dump(fixed_config, f, default_flow_style=False)
+    
+    print(f"✅ Applied fallback path fixes")
+
+
 def download_roboflow_dataset(args):
     """Download the chessboard corner dataset from Roboflow."""
     
@@ -124,11 +220,18 @@ def download_roboflow_dataset(args):
         print(f"📦 Getting version {VERSION}")
         dataset = project.version(VERSION)
         
-        # Download the dataset
-        print(f"⬇️  Downloading dataset to: {DATA_DIR}")
-        dataset.download(
-            location=str(DATA_DIR)
-        )
+        # Change to data directory and download
+        import os
+        original_dir = os.getcwd()
+        os.chdir(DATA_DIR)
+        
+        try:
+            # Download the dataset
+            print(f"⬇️  Downloading dataset to: {DATA_DIR}")
+            dataset.download(FORMAT)
+        finally:
+            # Change back to original directory
+            os.chdir(original_dir)
         print("✅ Dataset downloaded successfully!")
         
         # Find the downloaded dataset folder
@@ -159,6 +262,9 @@ def download_roboflow_dataset(args):
         
         else:
             print(f"⚠️  Warning: data.yaml not found at {data_yaml_path}")
+        
+        # Fix paths in data.yaml files to work with project structure
+        fix_data_yaml_paths(data_yaml_path, DATA_DIR, dataset_folder)
         
         # Create a symlink or copy to make it easier to find
         easy_access_path = DATA_DIR / "data.yaml"

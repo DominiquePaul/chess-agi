@@ -220,7 +220,10 @@ model.plot_eval("chess_board_image.jpg")
 ```python
 from src.chess_board_detection import ChessBoardModel
 
-# Load model
+# Load model from Hugging Face
+corner_model = ChessBoardModel.from_huggingface("dopaul/chess-corner-detection-training")
+
+# Or load from local path
 corner_model = ChessBoardModel(model_path="models/corner_detection.pt")
 
 # Detect corners (warns if not exactly 4 found)
