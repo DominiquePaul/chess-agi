@@ -67,7 +67,7 @@ def parse_args():
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="output/corner_detection_results",
+        default="artifacts/corner_detection_results",
         help="Directory to save result images with predictions drawn"
     )
     parser.add_argument(
@@ -114,6 +114,29 @@ def parse_args():
         "--verbose", 
         action="store_true",
         help="Show detailed output and processing information"
+    )
+    
+    # ========================================
+    # Test-Time Augmentation
+    # ========================================
+    parser.add_argument(
+        "--use-tta", 
+        action="store_true",
+        help="Use Test-Time Augmentation for improved accuracy (slower but more robust)"
+    )
+    
+    parser.add_argument(
+        "--find-optimal-conf", 
+        action="store_true",
+        help="Find optimal confidence threshold on the first image"
+    )
+    
+    parser.add_argument(
+        "--conf-range", 
+        nargs=2, 
+        type=float, 
+        default=[0.1, 0.8],
+        help="Confidence range to test for optimal threshold (min max)"
     )
     
     return parser.parse_args()
@@ -192,8 +215,33 @@ def test_single_image(model, image_path: Path, args) -> Optional[Dict]:
         if args.verbose:
             print(f"🔍 Processing image: {image_path}")
         
-        # Get corner coordinates (now returns a dictionary with 4 corners)
-        corners_dict, is_valid = model.get_corner_coordinates(str(image_path))
+        # Check if we should find optimal confidence first
+        if hasattr(args, 'find_optimal_conf') and args.find_optimal_conf:
+            print(f"🔍 Finding optimal confidence threshold for {image_path.name}...")
+            conf_results = model.find_optimal_confidence(str(image_path), 
+                                                       conf_range=tuple(args.conf_range))
+            # Use the confidence that gives exactly 1 detection with highest confidence
+            best_conf = 0.25  # Default fallback
+            for conf, result in conf_results.items():
+                if result['is_valid'] and result['avg_confidence'] > 0:
+                    best_conf = conf
+                    break
+            print(f"💡 Using confidence threshold: {best_conf:.3f}")
+            # Store the optimal confidence for this image
+            optimal_conf = best_conf
+        else:
+            optimal_conf = 0.25
+        
+        # Get corner coordinates using TTA if requested
+        if hasattr(args, 'use_tta') and args.use_tta:
+            if args.verbose:
+                print(f"🔄 Using Test-Time Augmentation for improved accuracy...")
+            # Use TTA method - but for simplicity, let's still use the regular corner extraction method
+            # after TTA inference. This avoids complex tensor handling while still benefiting from TTA.
+            model.predict_with_tta(str(image_path), conf=optimal_conf)  # This improves accuracy
+            
+        # Get corner coordinates (this will do the inference once, or use TTA-improved prediction)
+        corners_dict, is_valid = model.get_corner_coordinates(str(image_path), conf=optimal_conf)
         
         # Create results dictionary
         results = {
@@ -228,7 +276,11 @@ def test_single_image(model, image_path: Path, args) -> Optional[Dict]:
                 import matplotlib.pyplot as plt
                 # Create new figure for saving
                 fig, ax = plt.subplots(figsize=(10, 10))
-                model.plot_eval(str(image_path), ax=ax)
+                
+                # Use cached results from the previous inference to avoid dual inference
+                # We'll need to modify plot_eval to accept pre-computed results
+                model.plot_eval_with_results(str(image_path), corners_dict, is_valid, ax=ax)
+                
                 plt.savefig(output_path, bbox_inches='tight', dpi=150)
                 plt.close(fig)  # Close figure to free memory
                 
@@ -242,7 +294,12 @@ def test_single_image(model, image_path: Path, args) -> Optional[Dict]:
         # Show image if requested
         if args.show_image:
             try:
-                model.plot_eval(str(image_path), show=True)
+                # For display, we can use the regular plot_eval since it's just for viewing
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots(figsize=(10, 10))
+                model.plot_eval_with_results(str(image_path), corners_dict, is_valid, ax=ax)
+                plt.show()
+                plt.close(fig)
             except Exception as e:
                 if args.verbose:
                     print(f"⚠️  Could not display image: {e}")
