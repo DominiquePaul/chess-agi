@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from src.chess_board_detection.model import ChessBoardModel
+from src.chess_board_detection.yolo.model import ChessBoardModel
 
 def test_corner_detection(model_path: Path, image_path: Path):
     """
@@ -150,7 +150,7 @@ def main():
     # Check if model exists
     if not MODEL_PATH.exists():
         print(f"❌ Model not found: {MODEL_PATH}")
-        print("💡 Train a model first using: python -m src.chess_board_detection.train")
+        print("💡 Train a model first using: python -m src.chess_board_detection.yolo.train")
         sys.exit(1)
     
     # Check if test image exists

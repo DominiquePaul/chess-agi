@@ -21,7 +21,6 @@ pip install uv
 uv sync
 ```
 
-
 ## Download chess datasets
 
 ### From Hugging Face (recommended)
