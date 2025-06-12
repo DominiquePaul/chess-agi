@@ -21,6 +21,12 @@ This module provides a complete pipeline for downloading, processing, and upload
   - Source: Roboflow (`gustoguardian/chess-board-box/3`)
   - Purpose: Training chessboard corner detection models
 
+### Chessboard Segmentation
+- **`chessboard_segmentation_dominique`** - Chessboard segmentation dataset (Dominique)
+  - Polygon boundaries for precise chessboard detection
+  - Source: Roboflow (`gustoguardian/chess-board-i0ptl/3`)
+  - Purpose: Training chessboard segmentation models for precise polygon detection
+
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
@@ -84,7 +90,7 @@ python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_domin
 
 ### Dataset Selection
 ```bash
---datasets [roboflow] [chesspieces_dominique] [chessboard_corners_dominique]
+--datasets [roboflow] [chesspieces_dominique] [chessboard_corners_dominique] [chessboard_segmentation_dominique]
 ```
 Specify which datasets to download. Default: all datasets.
 
@@ -118,6 +124,9 @@ python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow chesspie
 
 # Only corner detection
 python src/data_prep/prepare_and_upload_datasets.py --datasets chessboard_corners_dominique
+
+# Only segmentation dataset
+python src/data_prep/prepare_and_upload_datasets.py --datasets chessboard_segmentation_dominique
 
 # Single dataset
 python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_dominique
@@ -154,12 +163,18 @@ $DATA_FOLDER_PATH/
 │   ├── valid/
 │   ├── test/
 │   └── data.yaml
-└── chessboard_corners/            # Chessboard corners
-    └── chess-board-box-3/         # Downloaded dataset folder
+├── chessboard_corners/            # Chessboard corners
+│   └── chess-board-box-3/         # Downloaded dataset folder
+│       ├── train/
+│       ├── valid/
+│       ├── test/
+│       └── data.yaml              # Use this path for training
+└── chessboard_segmentation/       # Chessboard segmentation
+    └── chess-board-i0ptl-3/       # Downloaded dataset folder
         ├── train/
         ├── valid/
         ├── test/
-        └── data.yaml              # Use this path for training
+        └── data.yaml              # Use this path for segmentation training
 ```
 
 ## 🎯 Training Models
@@ -250,6 +265,26 @@ python src/chess_board_detection/train.py \
 python -m src.chess_board_detection.inference_example
 ```
 
+### Chessboard Segmentation
+```bash
+# Train segmentation model with default settings
+python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
+    --data data/chessboard_segmentation/chess-board-i0ptl-3/data.yaml
+
+# Train with custom parameters
+python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
+    --data data/chessboard_segmentation/chess-board-i0ptl-3/data.yaml \
+    --epochs 100 \
+    --batch 16 \
+    --pretrained-model yolov8m-seg.pt \
+    --name polygon_detection_v1
+
+# Test segmentation model
+python src/chess_board_detection/yolo/segmentation/test_segmentation.py \
+    --model models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt \
+    --image path/to/test_image.jpg
+```
+
 ## 🔧 Individual Scripts
 
 If you prefer to use individual scripts instead of the main pipeline:
@@ -268,7 +303,7 @@ python src/data_prep/upload_to_hf.py
 # Set API key (required)
 export ROBOFLOW_API_KEY=your_api_key_here
 
-# Download dataset
+# Download corner detection dataset
 python src/chess_board_detection/download_data.py
 
 # Download to custom directory
@@ -276,6 +311,25 @@ python src/chess_board_detection/download_data.py --data-dir data/my_corners
 
 # Download with verbose output
 python src/chess_board_detection/download_data.py --verbose
+```
+
+### Chessboard Segmentation
+```bash
+# Set API key (required)
+export ROBOFLOW_API_KEY=your_api_key_here
+
+# Download segmentation dataset
+python src/chess_board_detection/download_data.py \
+    --project gustoguardian/chess-board-i0ptl \
+    --version 3 \
+    --data-dir data/chessboard_segmentation
+
+# Download with verbose output
+python src/chess_board_detection/download_data.py \
+    --project gustoguardian/chess-board-i0ptl \
+    --version 3 \
+    --data-dir data/chessboard_segmentation \
+    --verbose
 ```
 
 ## 📊 Pipeline Output Example

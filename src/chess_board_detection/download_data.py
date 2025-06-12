@@ -12,6 +12,7 @@ Usage:
     
     # Download to custom directory
     python src/chess_board_detection/download_data.py --data-dir data/my_corners
+    python src/chess_board_detection/download_data.py --project gustoguardian/chess-board-i0ptl --version 3 --data-dir data/chessboard_segmentation
     
     # Get help with all options
     python src/chess_board_detection/download_data.py --help
@@ -22,6 +23,7 @@ import os
 import sys
 from pathlib import Path
 import yaml
+import zipfile
 
 def parse_args():
     """Parse command line arguments."""
@@ -97,7 +99,7 @@ def fix_data_yaml_paths(data_yaml_path: Path, data_dir: Path, dataset_folder: Pa
         # The data.yaml will be accessed from data_dir, so paths should be relative to that
         dataset_name = dataset_folder.name  # e.g., "chess-board-box-3"
         
-        # Fix the paths - convert relative paths to be relative to data_dir
+        # Fix the paths - convert relative paths to be relative to the data.yaml file location
         fixed_paths = {}
         paths_were_fixed = False
         
@@ -105,13 +107,20 @@ def fix_data_yaml_paths(data_yaml_path: Path, data_dir: Path, dataset_folder: Pa
             if split in data_config:
                 original_path = data_config[split]
                 
-                # Convert paths like '../train/images' to 'chess-board-box-3/train/images'
-                # This will be relative to data_dir where the data.yaml is accessed from
+                # Convert paths like '../train/images' to 'train/images'
+                # This will be relative to the data.yaml file location (inside the dataset folder)
                 if original_path.startswith('../'):
                     # Remove the '../' and get the folder name (e.g., 'train/images')
                     folder_part = original_path[3:]  # Remove '../'
-                    # Create path relative to data_dir
-                    fixed_path = f"{dataset_name}/{folder_part}"
+                    # Create path relative to data.yaml file location
+                    fixed_path = folder_part
+                    fixed_paths[split] = fixed_path
+                    paths_were_fixed = True
+                    print(f"🔧 Fixed {split} path: {original_path} → {fixed_path}")
+                elif original_path.startswith(f"{dataset_name}/"):
+                    # Remove dataset name prefix if it exists (e.g., 'chess-board-box-3/train/images' → 'train/images')
+                    folder_part = original_path[len(dataset_name)+1:]  # Remove 'dataset_name/'
+                    fixed_path = folder_part
                     fixed_paths[split] = fixed_path
                     paths_were_fixed = True
                     print(f"🔧 Fixed {split} path: {original_path} → {fixed_path}")
@@ -129,12 +138,7 @@ def fix_data_yaml_paths(data_yaml_path: Path, data_dir: Path, dataset_folder: Pa
             with open(data_yaml_path, 'w') as f:
                 yaml.dump(data_config, f, default_flow_style=False)
             
-            # Create/update the data.yaml in data_dir with the same fixed paths
-            # This is the file that will be used for training
-            easy_access_path = data_dir / "data.yaml"
-            with open(easy_access_path, 'w') as f:
-                yaml.dump(data_config, f, default_flow_style=False)
-            print(f"✅ Updated data.yaml files with paths relative to data directory")
+            print(f"✅ Updated data.yaml with paths relative to dataset directory")
         else:
             print(f"ℹ️  No path fixes needed")
         
@@ -155,20 +159,21 @@ def fallback_fix_data_yaml(data_yaml_path: Path, data_dir: Path, dataset_folder:
     # Manual path construction for common scenarios
     dataset_name = dataset_folder.name  # e.g., "chess-board-box-3"
     
-    # Fix the paths to be relative to data_dir (where data.yaml will be accessed from)
+    # Fix the paths to be relative to the data.yaml file location
     fixed_config = data_config.copy()
     for split in ['train', 'val', 'test']:
-        if split in fixed_config and fixed_config[split].startswith('../'):
-            # Convert '../train/images' to 'chess-board-box-3/train/images'
-            folder_part = fixed_config[split][3:]  # Remove '../'
-            fixed_config[split] = f"{dataset_name}/{folder_part}"
+        if split in fixed_config:
+            if fixed_config[split].startswith('../'):
+                # Convert '../train/images' to 'train/images'
+                folder_part = fixed_config[split][3:]  # Remove '../'
+                fixed_config[split] = folder_part
+            elif fixed_config[split].startswith(f"{dataset_name}/"):
+                # Convert 'chess-board-box-3/train/images' to 'train/images'
+                folder_part = fixed_config[split][len(dataset_name)+1:]  # Remove 'dataset_name/'
+                fixed_config[split] = folder_part
     
-    # Write both files
+    # Write the fixed config
     with open(data_yaml_path, 'w') as f:
-        yaml.dump(fixed_config, f, default_flow_style=False)
-    
-    easy_access_path = data_dir / "data.yaml"
-    with open(easy_access_path, 'w') as f:
         yaml.dump(fixed_config, f, default_flow_style=False)
     
     print(f"✅ Applied fallback path fixes")
@@ -228,16 +233,61 @@ def download_roboflow_dataset(args):
         try:
             # Download the dataset
             print(f"⬇️  Downloading dataset to: {DATA_DIR}")
-            dataset.download(FORMAT)
+            try:
+                dataset.download(FORMAT)
+            except zipfile.BadZipFile:
+                # If the automatic extraction fails, try manual download and extraction
+                print("⚠️  Automatic extraction failed, trying manual download...")
+                import requests
+                
+                # Get the download URL from the dataset object
+                download_url = dataset.download_link(format=FORMAT)
+                
+                # Download with requests
+                zip_path = DATA_DIR / "roboflow.zip"
+                response = requests.get(download_url, stream=True)
+                response.raise_for_status()
+                
+                # Save the zip file
+                with open(zip_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
         finally:
             # Change back to original directory
             os.chdir(original_dir)
         print("✅ Dataset downloaded successfully!")
         
-        # Find the downloaded dataset folder
+        # Find the downloaded dataset folder or zip file
         downloaded_folders = [d for d in DATA_DIR.iterdir() if d.is_dir()]
+        zip_files = list(DATA_DIR.glob("*.zip"))
+        
+        # If we have a zip file but no folders, try to extract it
+        if zip_files and not downloaded_folders:
+            zip_path = zip_files[0]
+            print(f"📦 Found zip file: {zip_path}")
+            print("📂 Extracting dataset...")
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    # Test zip file integrity
+                    if zip_ref.testzip() is None:
+                        zip_ref.extractall(DATA_DIR)
+                        print("✅ Dataset extracted successfully!")
+                    else:
+                        raise zipfile.BadZipFile("Zip file integrity check failed")
+                # Remove zip file after successful extraction
+                zip_path.unlink()
+                # Update downloaded_folders after extraction
+                downloaded_folders = [d for d in DATA_DIR.iterdir() if d.is_dir()]
+            except zipfile.BadZipFile as e:
+                print(f"❌ Error extracting zip file: {str(e)}")
+                print("💡 The downloaded file appears to be corrupted.")
+                print("Please try:")
+                print("1. Running the command again")
+                print("2. Manual download from the Roboflow website")
+                raise
+        
         if not downloaded_folders:
-            raise Exception("No dataset folder found after download")
+            raise Exception("No dataset folder found after download and extraction attempts")
         
         dataset_folder = downloaded_folders[0]  # Usually named like "chess-board-box-3"
         print(f"✅ Dataset downloaded to: {dataset_folder}")
@@ -266,14 +316,7 @@ def download_roboflow_dataset(args):
         # Fix paths in data.yaml files to work with project structure
         fix_data_yaml_paths(data_yaml_path, DATA_DIR, dataset_folder)
         
-        # Create a symlink or copy to make it easier to find
-        easy_access_path = DATA_DIR / "data.yaml"
-        if data_yaml_path.exists() and not easy_access_path.exists():
-            try:
-                easy_access_path.symlink_to(data_yaml_path.relative_to(DATA_DIR))
-                print(f"🔗 Created symlink: {easy_access_path} -> {data_yaml_path}")
-            except Exception as e:
-                print(f"⚠️  Could not create symlink: {e}")
+
         
         print("\n✅ Download completed successfully!")
         print("\n🎯 Next steps:")

@@ -350,9 +350,9 @@ class BaseYOLOModel:
         
         print("="*50)
 
-    def predict(self, img_path, conf=0.1, save=False):
+    def predict(self, img_path, conf=0.1, save=False, imgsz=640):
         """Make predictions on an image."""
-        results = self.model.predict(img_path, conf=conf, save=save)[0]
+        results = self.model.predict(img_path, conf=conf, save=save, imgsz=imgsz)[0]
         return results
 
     def _display_plot_inline(self, ax=None, fig=None):

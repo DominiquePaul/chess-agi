@@ -21,137 +21,31 @@ pip install uv
 uv sync
 ```
 
-## Download chess datasets
+## Get datasets
 
-### From Hugging Face (recommended)
-
-The easiest way to get chess datasets is to download them directly from Hugging Face:
-
-#### Chess Piece Detection
+### Quick Start (Recommended)
 
 ```bash
-# Download merged dataset (recommended for training)
+# Download ready-to-use datasets from Hugging Face
 python src/data_prep/download_from_hf.py --dataset merged
 
-# Download all available datasets  
-python src/data_prep/download_from_hf.py --dataset all
-
-# Download specific datasets
-python src/data_prep/download_from_hf.py --dataset dominique roboflow
-
-# List available datasets
-python src/data_prep/download_from_hf.py --list
-
-# Download to custom directory
-python src/data_prep/download_from_hf.py --dataset merged --output-dir ./my_data
-```
-
-Or use the Hugging Face datasets directly in your code:
-
-```python
-from datasets import load_dataset
-
-# Load individual datasets
-dominique_dataset = load_dataset("dopaul/chess-pieces-dominique")
-roboflow_dataset = load_dataset("dopaul/chess-pieces-roboflow") 
-
-# Load merged dataset (recommended for training)
-merged_dataset = load_dataset("dopaul/chess-pieces-merged")
-
-# Access different splits
-train_data = merged_dataset["train"]
-valid_data = merged_dataset["valid"]
-test_data = merged_dataset["test"]
-```
-
-#### Chessboard Corner Detection
-
-For corner detection datasets, set API key and download:
-
-```bash
-# Set API key (required for automated download)
-export ROBOFLOW_API_KEY=your_api_key_here
-
-# Download dataset
-python src/chess_board_detection/download_data.py
-
-# Download to custom directory
-python src/chess_board_detection/download_data.py --data-dir data/my_corners
-
-# This downloads from Roboflow: gustoguardian/chess-board-box/3
-# Contains images with 4 corners per chessboard labeled
-```
-
-#### 🔑 How to Get Free Roboflow API Key
-
-**API key is required for automated downloads.** Follow these steps:
-
-1. **Visit**: https://roboflow.com/
-2. **Click**: "Sign Up" (free account)
-3. **Complete**: registration (30 seconds)
-4. **Go to**: Settings → API (or click your profile → Settings → API)
-5. **Copy**: your API key
-6. **Set environment variable**: `export ROBOFLOW_API_KEY=your_api_key_here`
-7. **Run**: `python src/chess_board_detection/download_data.py`
-
-**Benefits**: Secure, convenient, follows best practices for API credentials.
-
-**Alternative**: See [troubleshooting guide](src/data_prep/README.md#troubleshooting) for manual download instructions.
-
-### Recreate datasets from source
-
-If you want to recreate the datasets from scratch (for development or to upload your own version), follow these steps:
-
-#### Prerequisites
-
-1. **Kaggle API**: Create an API key at [www.kaggle.com/settings](https://www.kaggle.com/settings) and place the `kaggle.json` file in `~/.kaggle/kaggle.json`
-
-2. **Roboflow CLI**: Install if not already available:
-   ```bash
-   uv add roboflow
-   ```
-
-3. **Environment setup**: Make sure your `.env` file contains:
-   ```bash
-   DATA_FOLDER_PATH=/path/to/your/data/folder
-   HF_USERNAME=your-huggingface-username  # Set this if you want to upload
-   ```
-
-4. **Hugging Face authentication** (if uploading):
-   ```bash
-   huggingface-cli login
-   ```
-
-#### Step-by-step recreation
-
-```bash
-# Complete pipeline: download ALL datasets (chess pieces + chessboard_corners_dominique) and upload
+# Or download all datasets at once
 python src/data_prep/prepare_and_upload_datasets.py
-
-# Download only specific datasets:
-python src/data_prep/prepare_and_upload_datasets.py --datasets roboflow chesspieces_dominique  # Chess pieces only
-python src/data_prep/prepare_and_upload_datasets.py --datasets chessboard_corners_dominique             # Corners only
-python src/data_prep/prepare_and_upload_datasets.py --datasets chesspieces_dominique # Single dataset
-
-# Alternative options:
-python src/data_prep/prepare_and_upload_datasets.py --dry-run           # See what would be done
-python src/data_prep/prepare_and_upload_datasets.py --no-individual    # Only upload merged dataset
-python src/data_prep/prepare_and_upload_datasets.py --skip-download     # Only upload existing datasets
 ```
 
-**What the script does:**
+### 📖 Detailed Instructions
 
-**Chess Piece Detection Datasets:**
-- **`roboflow`**: Downloads chess pieces dataset from Kaggle, processes it to remove the extra "bishop" class, and standardizes the labels for YOLOv8 format
-- **`dominique`**: Downloads the complementary dataset from Roboflow with additional chess piece images  
+For comprehensive dataset options, API setup, troubleshooting, and advanced usage, see:
 
-**Chessboard Corner Detection Dataset:**
-- **`chessboard_corners_dominique`**: Downloads chessboard corner detection dataset from Roboflow (`gustoguardian/chess-board-box/3`) with 4 corners per board (Dominique)
+**[📋 Complete Dataset Guide →](src/data_prep/README.md)**
 
-**Upload Phase:**
-- Uploads datasets individually and creates a merged version (for chess pieces) on Hugging Face for easy access
-
-The script automatically checks prerequisites and provides clear status updates. You can inspect `src/data_prep/prepare_and_upload_datasets.py` to see exactly what it does - it imports functions from the existing processing scripts to keep the code clean and readable.
+The detailed guide covers:
+- Multiple download methods (Hugging Face, Roboflow, Kaggle)
+- Chess piece detection datasets
+- Chessboard corner detection datasets  
+- API key setup and troubleshooting
+- Dataset recreation from source
+- Upload to Hugging Face Hub
 
 ## Important links:
 
@@ -164,10 +58,19 @@ The script automatically checks prerequisites and provides clear status updates.
   - [Kaggle Chess Pieces Dataset](https://www.kaggle.com/datasets/imtkaggleteam/chess-pieces-detection-image-dataset)
   - [Roboflow Chess Pieces Detection](https://universe.roboflow.com/gustoguardian/chess-piece-detection-bltvi/dataset/6)
   - [Roboflow Chessboard Corners](https://universe.roboflow.com/gustoguardian/chess-board-box/dataset/3)
+  - [Roboflow Chessboard Segmentation](https://universe.roboflow.com/gustoguardian/chess-board-i0ptl/dataset/3)
 
-## Training Models
+## Using the models Training Models
 
-### Chess Piece Detection
+### Quickstart for prediction 
+
+[tbd]
+
+### Training the models from scratch
+
+Make sure that you've downloaded the data first. 
+
+#### Chess Piece Detection
 ```bash
 # Train chess piece detection model
 python -m src.chess_piece_detection.train
@@ -176,27 +79,55 @@ python -m src.chess_piece_detection.train
 python -m src.chess_piece_detection.inference_example
 ```
 
-### Chessboard Corner Detection
+#### Chessboard Detection (Corner Detection)
+
+We first identify the chessboard corners which we then use to identify the borders with in a second step using classical CV or perspective transformation.
+
 ```bash
-# Download corner detection dataset (with troubleshooting options)
-python src/chess_board_detection/download_data.py --api-key YOUR_API_KEY
+# Download corner detection dataset
+export ROBOFLOW_API_KEY=your_api_key_here
+python src/chess_board_detection/download_data.py
 
 # Train corner detection model with default settings
-python src/chess_board_detection/train.py
+python src/chess_board_detection/yolo/train.py
 
 # Train with custom parameters and HuggingFace upload
-python src/chess_board_detection/train.py \
+python src/chess_board_detection/yolo/train.py \
     --data data/chessboard_corners/chess-board-box-3/data.yaml \
     --epochs 100 \
     --batch 32 \
     --upload-hf \
-    --hf-model-name username/chessboard-corner-detector
+    --hf-model-name username/chessboard-detector
 
 # View all training options
 python src/chess_board_detection/train.py --help
 
 # Test corner detection
-python -m src.chess_board_detection.inference_example
+python -m src.chess_board_detection.yolo.inference_example
+```
+
+#### Chessboard Segmentation (Polygon Detection)
+
+For more precise chessboard boundary detection, we can use segmentation to get exact polygon coordinates.
+
+```bash
+# Download segmentation dataset
+export ROBOFLOW_API_KEY=your_api_key_here
+python src/chess_board_detection/download_data.py \
+    --project gustoguardian/chess-board-i0ptl \
+    --version 3 \
+    --data-dir data/chessboard_segmentation
+
+# Train segmentation model
+python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
+    --data data/chessboard_segmentation/chess-board-i0ptl-3/data.yaml \
+    --epochs 100 \
+    --batch 16
+
+# Test segmentation model
+python src/chess_board_detection/yolo/segmentation/test_segmentation.py \
+    --model models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt \
+    --image path/to/test_image.jpg
 ```
 
 ## Usage Examples
@@ -237,6 +168,27 @@ corner_model.plot_eval("image.jpg", show_polygon=True)
 # Order corners consistently (top-left, top-right, bottom-right, bottom-left)
 if is_valid:
     ordered_corners = corner_model.order_corners(coordinates)
+```
+
+### Chessboard Segmentation
+```python
+from src.chess_board_detection.yolo.segmentation.segmentation_model import ChessBoardSegmentationModel
+
+# Load segmentation model
+seg_model = ChessBoardSegmentationModel(model_path="models/segmentation.pt")
+
+# Get precise polygon coordinates
+polygon_info, is_valid = seg_model.get_polygon_coordinates("image.jpg")
+
+# Visualize segmentation with polygon outline
+seg_model.plot_eval("image.jpg", show_polygon=True, show_mask=True)
+
+# Extract polygon points for perspective transformation
+if is_valid:
+    coordinates = polygon_info['coordinates']
+    print(f"Detected {len(coordinates)} polygon points")
+    for i, point in enumerate(coordinates):
+        print(f"Point {i}: ({point['x']:.1f}, {point['y']:.1f})")
 ```
 
 ## 🔧 Troubleshooting

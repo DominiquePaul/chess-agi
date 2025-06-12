@@ -147,6 +147,42 @@ def download_chessboard_corners_dominique():
         return False
 
 
+def download_chessboard_segmentation_dominique():
+    """Download chessboard segmentation dataset from Roboflow (Dominique)"""
+    print("\n📦 Downloading Chessboard Segmentation Dataset (Dominique)...")
+    print("   📊 Dataset: Chessboard segmentation with polygon boundaries")
+    print("   📍 Source: Roboflow (gustoguardian/chess-board-i0ptl/3)")
+    print("   🎯 Purpose: Training chessboard segmentation models for precise polygon detection")
+    
+    try:
+        # Import the download function and arguments class
+        from src.chess_board_detection.download_data import download_roboflow_dataset
+        from argparse import Namespace
+        
+        # Create mock args for the download function
+        args = Namespace(
+            data_dir=str(DATA_FOLDER_PATH / "chessboard_segmentation"),
+            project="gustoguardian/chess-board-i0ptl",
+            version=3,
+            format="yolov8",
+            verbose=False
+        )
+        
+        # Call the download function
+        dataset_folder = download_roboflow_dataset(args)
+        
+        if dataset_folder:
+            print("✅ Chessboard segmentation dataset (Dominique) downloaded successfully")
+            return True
+        else:
+            print("❌ Download failed - no dataset folder returned")
+            return False
+        
+    except Exception as e:
+        print(f"❌ Error downloading chessboard segmentation dataset (Dominique): {e}")
+        return False
+
+
 def upload_to_huggingface(upload_individual=True, upload_merged=True, datasets_to_upload=None):
     """Upload datasets to Hugging Face Hub"""
     print("\n🚀 Uploading datasets to Hugging Face Hub...")
@@ -239,11 +275,13 @@ Dataset Types:
   roboflow    - Chess pieces from Roboflow (via Kaggle)
   chesspieces_dominique   - Chess pieces from Dominique's Roboflow project  
   chessboard_corners_dominique     - Chessboard corner detection dataset (Dominique)
+  chessboard_segmentation_dominique - Chessboard segmentation dataset (Dominique)
 
 Examples:
   %(prog)s                                    # Download all datasets and upload
   %(prog)s --datasets roboflow chesspieces_dominique     # Download only chess piece datasets
   %(prog)s --datasets chessboard_corners_dominique                # Download only corner detection dataset  
+  %(prog)s --datasets chessboard_segmentation_dominique           # Download only segmentation dataset
   %(prog)s --datasets chesspieces_dominique           # Single dataset
   %(prog)s --skip-download                   # Only upload existing datasets
   %(prog)s --no-individual                   # Skip individual uploads, only merged
@@ -255,7 +293,7 @@ Examples:
     parser.add_argument(
         "--datasets",
         nargs="+",
-        choices=["roboflow", "chesspieces_dominique", "chessboard_corners_dominique"],
+        choices=["roboflow", "chesspieces_dominique", "chessboard_corners_dominique", "chessboard_segmentation_dominique"],
         help="Specify which datasets to download (default: all)"
     )
     
@@ -287,7 +325,7 @@ Examples:
     
     # Default to all datasets if none specified
     if args.datasets is None:
-        args.datasets = ["roboflow", "chesspieces_dominique", "chessboard_corners_dominique"]
+        args.datasets = ["roboflow", "chesspieces_dominique", "chessboard_corners_dominique", "chessboard_segmentation_dominique"]
     
     print("🏗️  Chess Dataset Preparation Pipeline")
     print("=" * 60)
@@ -319,7 +357,8 @@ Examples:
         download_functions = {
              "roboflow": ("Chess Pieces (Roboflow/Kaggle)", download_roboflow_chess_pieces),
              "chesspieces_dominique": ("Chess Pieces (Dominique)", download_dominique_chess_pieces), 
-             "chessboard_corners_dominique": ("Chessboard Corners (Dominique)", download_chessboard_corners_dominique)
+             "chessboard_corners_dominique": ("Chessboard Corners (Dominique)", download_chessboard_corners_dominique),
+             "chessboard_segmentation_dominique": ("Chessboard Segmentation (Dominique)", download_chessboard_segmentation_dominique)
          }
         
         for dataset_key in args.datasets:

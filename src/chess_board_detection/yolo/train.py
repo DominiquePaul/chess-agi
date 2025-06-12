@@ -6,7 +6,8 @@ This script trains a YOLO model to detect the 4 corners of a chessboard.
 
 Usage:
     # Basic training with default settings
-    python src/chess_board_detection/train.py
+    python src/chess_board_detection/train.py --epochs 100
+
     
     # Run from project root as module
     python -m src.chess_board_detection.train
@@ -39,7 +40,11 @@ Usage:
 
 import argparse
 from pathlib import Path
+from dotenv import load_dotenv
 from src.chess_board_detection.yolo.model import ChessBoardModel
+
+# Load environment variables from .env file
+load_dotenv()
 
 def parse_args():
     """Parse command line arguments for training configuration."""

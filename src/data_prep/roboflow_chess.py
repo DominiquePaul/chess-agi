@@ -120,10 +120,6 @@ def update_data_yaml(data_folder_path: Path, folder_name: Path):
     """Update the data.yaml file to remove the bishop class and update paths"""
     data_path = data_folder_path / folder_name / "data.yaml"
 
-    # Create datasets/roboflow directory if it doesn't exist
-    datasets_dir = data_folder_path.parent / "datasets" / "roboflow"
-    os.makedirs(datasets_dir, exist_ok=True)
-
     # Original class names with the extra bishop class
     original_names = {
         0: "bishop",
@@ -146,23 +142,19 @@ def update_data_yaml(data_folder_path: Path, folder_name: Path):
     for i in range(1, len(original_names)):
         updated_names[i - 1] = original_names[i]
 
-    # Create updated data.yaml content
+    # Create updated data.yaml content with standard relative paths
     data_yaml = {
-        "train": "../train/images",
-        "val": "../valid/images",
-        "test": "../test/images",
+        "train": "train/images",
+        "val": "valid/images", 
+        "test": "test/images",
         "names": updated_names,
+        "nc": len(updated_names)
     }
 
-    # Write to the original data.yaml file
+    # Write to the original data.yaml file in the dataset directory
     with open(data_path, "w") as f:
         yaml.dump(data_yaml, f, sort_keys=False)
-    print(f"Updated {data_path}")
-
-    # Also write to datasets/roboflow/data.yaml
-    with open(datasets_dir / "data.yaml", "w") as f:
-        yaml.dump(data_yaml, f, sort_keys=False)
-    print(f"Created {datasets_dir / 'data.yaml'}")
+    print(f"✅ Updated {data_path}")
 
 
 if __name__ == "__main__":
