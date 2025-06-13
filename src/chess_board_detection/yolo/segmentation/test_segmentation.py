@@ -24,7 +24,7 @@ Usage:
     # Use different corner extraction methods
     python src/chess_board_detection/yolo/segmentation/test_segmentation.py --model models/best.pt --image image.jpg --extract-corners --corner-method harris
     
-    # Use extended lines method (default) for most accurate corners
+    # Use extended lines method for most accurate corners
     python src/chess_board_detection/yolo/segmentation/test_segmentation.py --model models/best.pt --image image.jpg --extract-corners --corner-method extended
 """
 
@@ -51,9 +51,9 @@ def parse_args():
     parser.add_argument("--iou", type=float, default=0.7, help="IoU threshold")
     parser.add_argument("--max-segments", type=int, default=1, help="Maximum number of chessboard segments to detect (default: 1)")
     parser.add_argument("--extract-corners", action="store_true", help="Extract and display corner coordinates")
-    parser.add_argument("--corner-method", type=str, default="extended", 
+    parser.add_argument("--corner-method", type=str, default="approx", 
                        choices=["approx", "lines", "hybrid", "harris", "contour", "extended"],
-                       help="Corner extraction method (default: extended)")
+                       help="Corner extraction method (default: approx)")
     
     return parser.parse_args()
 
