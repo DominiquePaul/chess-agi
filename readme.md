@@ -73,9 +73,58 @@ The detailed guide covers:
 Make sure that you've downloaded the data first. 
 
 #### Chess Piece Detection
+
+Train a YOLO object detection model to identify and classify chess pieces on board images.
+
 ```bash
-# Train chess piece detection model
-python -m src.chess_piece_detection.train
+# Basic training with default settings (YOLOv8s COCO pretrained)
+python src/chess_piece_detection/train.py --epochs 100
+
+# Choose different COCO-pretrained model size
+python src/chess_piece_detection/train.py \
+    --pretrained-model yolov8m.pt \
+    --epochs 100
+
+# Custom training parameters
+python src/chess_piece_detection/train.py \
+    --data data/chess_pieces_merged/data.yaml \
+    --pretrained-model yolov8s.pt \
+    --epochs 100 \
+    --batch 16 \
+    --imgsz 640
+
+# Complete example with all options
+python src/chess_piece_detection/train.py \
+    --data data/chess_pieces_merged/data.yaml \
+    --pretrained-model yolov8m.pt \
+    --models-folder models/chess_piece_detection \
+    --name training_v3 \
+    --epochs 100 \
+    --batch 32 \
+    --imgsz 640 \
+    --lr 0.001 \
+    --patience 15 \
+    --save-period 10 \
+    --degrees 10.0 \
+    --translate 0.1 \
+    --scale 0.2 \
+    --fliplr 0.5 \
+    --mosaic 1.0 \
+    --mixup 0.1 \
+    --optimizer AdamW \
+    --eval-individual \
+    --push-to-hf \
+    --verbose
+
+# View all training options
+python src/chess_piece_detection/train.py --help
+
+# Available COCO-pretrained models:
+#   - yolov8n.pt (nano, ~6MB, fastest)
+#   - yolov8s.pt (small, ~22MB, fast, recommended)  
+#   - yolov8m.pt (medium, ~52MB, balanced)
+#   - yolov8l.pt (large, ~104MB, accurate)
+#   - yolov8x.pt (extra large, ~136MB, most accurate)
 
 # Run inference example
 python -m src.chess_piece_detection.inference_example
@@ -216,16 +265,30 @@ The CLI provides:
 
 ### Chess Piece Detection
 ```python
-from src.chess_piece_detection import ChessModel
+from src.chess_piece_detection.model import ChessModel
 
-# Load model
+# Load model from Hugging Face
 model = ChessModel.from_huggingface("username/chess-piece-detector")
 
-# Predict pieces on an image
-results = model.predict("chess_board_image.jpg")
+# Or create new model with pretrained checkpoint (for training/transfer learning)
+model = ChessModel(pretrained_checkpoint="yolov8s.pt")  # Uses YOLOv8s by default
+model = ChessModel(pretrained_checkpoint="yolov8m.pt")  # Use larger model
 
-# Plot evaluation with bounding boxes
-model.plot_eval("chess_board_image.jpg")
+# Or load your own trained model
+model = ChessModel(model_path="models/chess_piece_detection/training_v3/weights/best.pt")
+
+# Predict pieces on an image
+results = model.predict("chess_board_image.jpg", conf=0.5)
+
+# Plot evaluation with bounding boxes and labels
+model.plot_eval("chess_board_image.jpg", conf=0.25)
+
+# Get detected piece information
+for box in results.boxes:
+    class_name = results.names[int(box.cls)]
+    confidence = float(box.conf)
+    coordinates = box.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2]
+    print(f"Detected {class_name} with confidence {confidence:.2f} at {coordinates}")
 ```
 
 ### Chessboard Corner Detection

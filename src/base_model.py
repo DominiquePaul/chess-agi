@@ -25,11 +25,24 @@ except ImportError:
 class BaseYOLOModel:
     """Base class for YOLO-based models with common functionality."""
     
-    def __init__(self, model_path: Path | None = None, device: torch.device | None = None):
+    def __init__(self, model_path: Path | None = None, device: torch.device | None = None, pretrained_checkpoint: str | None = None):
+        """
+        Initialize BaseYOLOModel.
+        
+        Args:
+            model_path: Path to existing trained model (optional)
+            device: Device to run model on (auto-detected if None)
+            pretrained_checkpoint: Pretrained YOLO checkpoint to use when no model_path exists (optional)
+        """
         self.model_path = model_path
         self.device = device or get_best_torch_device()
+        self.pretrained_checkpoint = pretrained_checkpoint
+        
         if model_path and model_path.exists():
             self.load_model()
+        elif pretrained_checkpoint:
+            print(f"Loading pretrained checkpoint: {pretrained_checkpoint}")
+            self.model = YOLO(pretrained_checkpoint)
         else:
             self.model = YOLO()
         self.model.to(self.device)
@@ -40,7 +53,8 @@ class BaseYOLOModel:
                         filename: str = "best.pt",
                         device: torch.device | None = None,
                         cache_dir: Path | None = None,
-                        token: str | None = None):
+                        token: str | None = None,
+                        pretrained_checkpoint: str | None = None):
         """
         Load a model from a Hugging Face repository.
         
@@ -50,6 +64,7 @@ class BaseYOLOModel:
             device: Device to load the model on (auto-detected if None)
             cache_dir: Directory to cache downloaded files (uses HF default if None)
             token: Hugging Face authentication token (uses env var if not provided)
+            pretrained_checkpoint: Pretrained YOLO checkpoint to use as fallback (optional)
             
         Returns:
             BaseYOLOModel: Instantiated model loaded from HF Hub
@@ -83,7 +98,7 @@ class BaseYOLOModel:
             print(f"✓ Downloaded model to: {model_path}")
             
             # Create and return model instance
-            return cls(model_path=Path(model_path), device=device)
+            return cls(model_path=Path(model_path), device=device, pretrained_checkpoint=pretrained_checkpoint)
             
         except Exception as e:
             print(f"❌ Failed to download model from {repo_id}: {e}")

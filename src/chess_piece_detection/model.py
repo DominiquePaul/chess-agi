@@ -7,10 +7,22 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle  # Import Rectangle from patches
 import ultralytics
+from ultralytics import YOLO
 from src.base_model import BaseYOLOModel
 
 class ChessModel(BaseYOLOModel):
     """Model for detecting chess pieces using YOLO."""
+
+    def __init__(self, model_path: Path | None = None, device=None, pretrained_checkpoint: str = "yolov8s.pt"):
+        """
+        Initialize ChessModel with YOLOv8s as default pretrained checkpoint.
+        
+        Args:
+            model_path: Path to existing trained model (optional)
+            device: Device to run model on (auto-detected if None)
+            pretrained_checkpoint: Pretrained YOLO checkpoint to use (default: yolov8s.pt)
+        """
+        super().__init__(model_path, device, pretrained_checkpoint)
 
     def plot_eval(self, img_path, ax=None, conf=0.1):
         """
@@ -78,31 +90,57 @@ if __name__ == "__main__":
 
     single_eval_img_path = Path(os.environ["DATA_FOLDER_PATH"]) / "eval_images/chess_2.jpeg"
     
-    # Load old model
-    model_path = MODELS_FOLDER / CHESS_PIECE_MODEL_NAME / "training_v1/weights/best.pt"
-    model = ChessModel(model_path)
-    plot = model.plot_eval(single_eval_img_path)
-
-    # Load updated model
-    updated_model_path = MODELS_FOLDER / CHESS_PIECE_MODEL_NAME / "training_v2/weights/best.pt"
-    updated_model = ChessModel(updated_model_path)
-    updated_model.plot_eval(single_eval_img_path, conf=0.5)
-    updated_model.predict(single_eval_img_path, conf=0.5)
+    # Create new model with YOLOv8s pretrained checkpoint for training
+    print("=== Creating new model with YOLOv8s checkpoint ===")
+    new_model = ChessModel(pretrained_checkpoint="yolov8s.pt")
     
-    ### Create figure with old and new model predictions
-    fig, axes = plt.subplots(1, 2, figsize=(15, 8))
-    # Plot original model predictions
-    axes[0].set_title("Model trained on online chess piece data")
-    model.plot_eval(single_eval_img_path, ax=axes[0], conf=0.5)
-    # Plot updated model predictions  
-    axes[1].set_title("Model trained on online chess piece data + my data")
-    updated_model.plot_eval(single_eval_img_path, ax=axes[1], conf=0.5)
-    plt.tight_layout()
-    # Create output directory if it doesn't exist
-    os.makedirs("output/plots", exist_ok=True)
-    # Save figure
-    plt.savefig("output/plots/chess_pieces_annotated.jpg", dpi=200)
-    plt.close(fig)
+    # Example: Train the model (uncomment when you have your dataset ready)
+    # data_yaml_path = Path("path/to/your/chess_dataset.yaml")
+    # training_results = new_model.train(
+    #     data_path=data_yaml_path,
+    #     epochs=100,
+    #     batch=16,
+    #     imgsz=640,
+    #     project=MODELS_FOLDER / CHESS_PIECE_MODEL_NAME,
+    #     name="training_v3_yolov8s"
+    # )
+    
+    # Load old model for comparison (if it exists)
+    model_path = MODELS_FOLDER / CHESS_PIECE_MODEL_NAME / "training_v1/weights/best.pt"
+    if model_path.exists():
+        print("=== Loading old model for comparison ===")
+        model = ChessModel(model_path)
+        plot = model.plot_eval(single_eval_img_path)
+
+    # Load updated model (if it exists)
+    updated_model_path = MODELS_FOLDER / CHESS_PIECE_MODEL_NAME / "training_v2/weights/best.pt"
+    if updated_model_path.exists():
+        print("=== Loading updated model for comparison ===")
+        updated_model = ChessModel(updated_model_path)
+        updated_model.plot_eval(single_eval_img_path, conf=0.5)
+        updated_model.predict(single_eval_img_path, conf=0.5)
+        
+        ### Create figure with old and new model predictions
+        fig, axes = plt.subplots(1, 2, figsize=(15, 8))
+        # Plot original model predictions
+        axes[0].set_title("Model trained on online chess piece data")
+        model.plot_eval(single_eval_img_path, ax=axes[0], conf=0.5)
+        # Plot updated model predictions  
+        axes[1].set_title("Model trained on online chess piece data + my data")
+        updated_model.plot_eval(single_eval_img_path, ax=axes[1], conf=0.5)
+        plt.tight_layout()
+        # Create output directory if it doesn't exist
+        os.makedirs("output/plots", exist_ok=True)
+        # Save figure
+        plt.savefig("output/plots/chess_pieces_annotated.jpg", dpi=200)
+        plt.close(fig)
+    else:
+        print("=== No existing trained models found ===")
+        print("Run model training first to compare results")
+        
+    # Test the new YOLOv8s model on sample image
+    print("=== Testing YOLOv8s model on sample image ===")
+    new_model.plot_eval(single_eval_img_path, conf=0.1)
 
     # ### Video
     # example_video_path = "/kaggle/input/chess-pieces-detection-image-dataset/Chess_pieces/Chess_video_example.mp4"
