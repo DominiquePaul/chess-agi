@@ -919,6 +919,21 @@ def save_results(all_results, image_path_str, output_dir="artifacts"):
     return result_dir
 
 
+def is_xml_error_file(image_path_str):
+    """
+    Check if the file at image_path_str is an XML error file (e.g., from a failed download).
+    Returns True if it looks like an XML error, False otherwise.
+    """
+    try:
+        with open(image_path_str, 'r', encoding='utf-8') as f:
+            first_1k = f.read(1024)
+            if first_1k.strip().startswith('<?xml') and '<Error>' in first_1k:
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def analyze_chess_board(input_image, model_path="models/yolo_chess_piece_detector/training_v2/weights/best.pt", target_size=512, conf=0.5):
     """
     Analyze a chess board from either a numpy array or image path.
@@ -940,6 +955,9 @@ def analyze_chess_board(input_image, model_path="models/yolo_chess_piece_detecto
     if isinstance(input_image, str) or isinstance(input_image, Path):
         # Input is a path
         image_path_str = str(input_image)
+        # Check for XML error file before loading as image
+        if is_xml_error_file(image_path_str):
+            raise ValueError(f"The file at {image_path_str} is not a valid image but an XML error response (likely from a failed download). Please check your file source and try again.")
         original_image = cv2.imread(image_path_str)
         if original_image is None:
             raise ValueError(f"Could not load image from path: {image_path_str}")

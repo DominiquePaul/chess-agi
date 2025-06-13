@@ -1,34 +1,38 @@
 #!/usr/bin/env python3
 """
-HuggingFace Upload CLI for ChessBoard Corner Detection
+HuggingFace Upload CLI for ChessBoard Detection Models
 
-Upload trained chessboard corner detection models to HuggingFace Model Hub.
+Upload trained chessboard detection models (corner detection or segmentation) to HuggingFace Model Hub.
 
 Usage:
-    # Basic upload
-    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name username/chessboard-corner-detector
+    # Corner Detection Models
+    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name username/chessboard-corner-detector --model-task corner-detection
+    
+    # Segmentation Models
+    python src/chess_board_detection/upload_hf.py --model artifacts/models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt --repo-name username/chessboard-segmentation --model-task segmentation
     
     # Upload with custom description and tags
-    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name username/chessboard-corners --description "My custom corner detector" --tags computer-vision,chess,detection
+    python src/chess_board_detection/upload_hf.py --model path/to/model.pt --repo-name username/model-name --model-task segmentation --description "My custom model" --tags computer-vision,chess,detection
     
     # Upload and make repository private
-    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name username/my-chess-model --private
-    
-    # Run from project root as module
-    python -m src.chess_board_detection.upload_hf --help
+    python src/chess_board_detection/upload_hf.py --model path/to/model.pt --repo-name username/my-chess-model --model-task corner-detection --private
 
 Examples:
-    # Simple upload
-    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name myusername/chess-corner-detector
+    # Corner detection model
+    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name myusername/chess-corner-detector --model-task corner-detection
+    
+    # Segmentation model
+    python src/chess_board_detection/upload_hf.py --model artifacts/models/chess_board_segmentation/training/weights/best.pt --repo-name myusername/chess-segmentation --model-task segmentation
     
     # Complete upload with metadata
     python src/chess_board_detection/upload_hf.py \
-        --model models/chess_board_detection/corner_detection_training/weights/best.pt \
-        --repo-name myusername/chess-corner-detector \
-        --description "YOLO-based chessboard corner detection model" \
-        --tags computer-vision,chess,yolo,detection \
+        --model artifacts/models/chess_board_segmentation/training/weights/best.pt \
+        --repo-name myusername/chess-segmentation \
+        --model-task segmentation \
+        --description "YOLO-based chessboard segmentation model" \
+        --tags computer-vision,chess,yolo,segmentation \
         --license mit \
-        --dataset-name "Chess Board Corners Dataset"
+        --dataset-name "Chess Board Segmentation Dataset"
 
 Prerequisites:
     1. Install HuggingFace CLI: pip install huggingface_hub
@@ -66,6 +70,13 @@ def parse_args():
         required=True,
         help="HuggingFace repository name in format 'username/model-name' (e.g., 'myusername/chess-corner-detector')"
     )
+    parser.add_argument(
+        "--model-task", 
+        type=str, 
+        required=True,
+        choices=["corner-detection", "segmentation"],
+        help="Type of model task: 'corner-detection' for corner detection models, 'segmentation' for segmentation models"
+    )
     
     # ========================================
     # Repository Configuration
@@ -73,14 +84,14 @@ def parse_args():
     parser.add_argument(
         "--description", 
         type=str, 
-        default="ChessBoard corner detection model trained with YOLO",
-        help="Description for the model repository"
+        default=None,
+        help="Description for the model repository (auto-generated based on model-task if not provided)"
     )
     parser.add_argument(
         "--tags", 
         type=str, 
-        default="computer-vision,chess,yolo,object-detection",
-        help="Comma-separated tags for the model (e.g., 'computer-vision,chess,detection')"
+        default=None,
+        help="Comma-separated tags for the model (auto-generated based on model-task if not provided)"
     )
     parser.add_argument(
         "--license", 
@@ -101,8 +112,8 @@ def parse_args():
     parser.add_argument(
         "--dataset-name", 
         type=str, 
-        default="Chess Board Corner Detection Dataset",
-        help="Name of the dataset used for training"
+        default=None,
+        help="HuggingFace dataset ID used for training (format: 'username/dataset-name'). If not a valid HF dataset ID, will be omitted from model card metadata."
     )
     parser.add_argument(
         "--model-type", 
@@ -113,8 +124,8 @@ def parse_args():
     parser.add_argument(
         "--task", 
         type=str, 
-        default="object-detection",
-        help="Primary task the model performs"
+        default=None,
+        help="Primary task the model performs (auto-generated based on model-task if not provided)"
     )
     
     # ========================================
@@ -147,6 +158,25 @@ def parse_args():
     
     return parser.parse_args()
 
+def set_task_defaults(args):
+    """Set default values based on the model task."""
+    if args.model_task == "corner-detection":
+        if args.description is None:
+            args.description = "ChessBoard corner detection model trained with YOLO"
+        if args.tags is None:
+            args.tags = "computer-vision,chess,yolo,object-detection"
+        if args.task is None:
+            args.task = "object-detection"
+    elif args.model_task == "segmentation":
+        if args.description is None:
+            args.description = "ChessBoard segmentation model trained with YOLO"
+        if args.tags is None:
+            args.tags = "computer-vision,chess,yolo,segmentation,instance-segmentation"
+        if args.task is None:
+            args.task = "instance-segmentation"
+    
+    # Note: dataset_name is left as None by default since we need a valid HF dataset ID
+
 def validate_args(args) -> bool:
     """Validate command line arguments."""
     # Check if model file exists
@@ -154,7 +184,10 @@ def validate_args(args) -> bool:
     if not model_path.exists():
         print(f"❌ Error: Model file '{model_path}' does not exist!")
         print("💡 Train a model first with:")
-        print("   python src/chess_board_detection/train.py")
+        if args.model_task == "corner-detection":
+            print("   python src/chess_board_detection/train.py")
+        elif args.model_task == "segmentation":
+            print("   python src/chess_board_detection/yolo/segmentation/train_segmentation.py")
         return False
     
     # Validate repository name format
@@ -215,15 +248,21 @@ def check_huggingface_auth() -> bool:
         print("💡 Install with: pip install huggingface_hub")
         return False
 
-def load_model_for_upload(model_path: Path, verbose: bool = False):
+def load_model_for_upload(model_path: Path, model_task: str, verbose: bool = False):
     """Load the model to prepare for upload."""
     try:
-        from src.chess_board_detection.model import ChessBoardModel
-        
-        if verbose:
-            print(f"🔄 Loading model from: {model_path}")
-        
-        model = ChessBoardModel(model_path=model_path)
+        if model_task == "corner-detection":
+            from src.chess_board_detection.model import ChessBoardModel
+            if verbose:
+                print(f"🔄 Loading corner detection model from: {model_path}")
+            model = ChessBoardModel(model_path=model_path)
+        elif model_task == "segmentation":
+            from src.chess_board_detection.yolo.segmentation.segmentation_model import ChessBoardSegmentationModel
+            if verbose:
+                print(f"🔄 Loading segmentation model from: {model_path}")
+            model = ChessBoardSegmentationModel(model_path=model_path)
+        else:
+            raise ValueError(f"Unknown model task: {model_task}")
         
         if verbose:
             print("✅ Model loaded successfully")
@@ -231,7 +270,7 @@ def load_model_for_upload(model_path: Path, verbose: bool = False):
         return model
         
     except Exception as e:
-        print(f"❌ Failed to load model: {e}")
+        print(f"❌ Failed to load {model_task} model: {e}")
         print("💡 Make sure the model file is a valid YOLO .pt file")
         return None
 
@@ -243,12 +282,18 @@ def create_model_card(args, model_path: Path) -> str:
     """Create a model card (README.md) for the repository."""
     tags = parse_tags(args.tags)
     
+    # Check if dataset_name looks like a valid HF dataset ID (contains /)
+    datasets_section = ""
+    if args.dataset_name and "/" in args.dataset_name:
+        datasets_section = f"""datasets:
+- {args.dataset_name}"""
+    
+    # Common model card header
     model_card = f"""---
 license: {args.license}
 tags:
 {chr(10).join(f"- {tag}" for tag in tags)}
-datasets:
-- {args.dataset_name}
+{datasets_section}
 model-index:
 - name: {args.repo_name.split('/')[-1]}
   results: []
@@ -260,47 +305,67 @@ model-index:
 
 ## Model Details
 
-- **Model Type**: {args.model_type.upper()}
+- **Model Type**: {args.model_type.upper()} {args.model_task.title().replace('-', ' ')}
 - **Task**: {args.task}
-- **Dataset**: {args.dataset_name}
 - **License**: {args.license}
 
 ## Usage
 
-### Loading the Model
+"""
+    
+    # Add task-specific usage examples
+    if args.model_task == "corner-detection":
+        model_card += """### Loading the Model
 
 ```python
 from src.chess_board_detection.model import ChessBoardModel
 
 # Load the model
-model = ChessBoardModel.from_pretrained("{args.repo_name}")
+model = ChessBoardModel(model_path="path/to/downloaded/model.pt")
 
 # Detect corners in an image
 corners = model.get_corner_coordinates("path/to/chessboard_image.jpg")
-print(f"Detected corners: {{corners}}")
+print(f"Detected corners: {corners}")
 
 # Visualize results
 model.plot_eval("path/to/chessboard_image.jpg", show=True)
 ```
 
-### CLI Usage
+### Direct YOLO Usage
 
-```bash
-# Test the model on an image
-python src/chess_board_detection/test_model.py \\
-    --model {args.repo_name} \\
-    --image path/to/image.jpg
+```python
+from ultralytics import YOLO
 
-# Get corner coordinates as JSON
-python src/chess_board_detection/test_model.py \\
-    --model {args.repo_name} \\
-    --image path/to/image.jpg \\
-    --json-output
+# Load the model
+model = YOLO("path/to/downloaded/model.pt")
+
+# Run detection
+results = model("path/to/chessboard_image.jpg")
+
+# Get bounding boxes and keypoints
+for result in results:
+    boxes = result.boxes
+    keypoints = result.keypoints
+    print(f"Detected {len(boxes)} chessboard(s)")
 ```
 
-## Model Performance
+### Training Data Format
 
-<!-- Add performance metrics here after training -->
+This model expects YOLO detection format with keypoint annotations:
+
+```yaml
+# data.yaml
+train: path/to/train/images
+val: path/to/val/images
+nc: 1
+names: ['chessboard']
+```
+
+With corresponding label files containing keypoint coordinates:
+```
+# labels/image.txt
+0 x_center y_center width height x1 y1 v1 x2 y2 v2 ...  # normalized coordinates
+```
 
 ## Training
 
@@ -312,6 +377,89 @@ python src/chess_board_detection/train.py \\
     --epochs 50 \\
     --batch 16
 ```
+"""
+    
+    elif args.model_task == "segmentation":
+        model_card += """### Loading the Model
+
+```python
+from src.chess_board_detection.yolo.segmentation.segmentation_model import ChessBoardSegmentationModel
+
+# Load the model
+model = ChessBoardSegmentationModel(model_path="path/to/downloaded/model.pt")
+
+# Get polygon coordinates for a chessboard
+polygon_info, is_valid = model.get_polygon_coordinates("path/to/chessboard_image.jpg")
+
+if is_valid:
+    print(f"Detected chessboard polygon: {polygon_info}")
+    
+    # Extract corners from the segmentation
+    corners = model.extract_corners_from_segmentation(
+        "path/to/chessboard_image.jpg", 
+        polygon_info
+    )
+    print(f"Extracted corners: {corners}")
+
+# Visualize results
+model.plot_eval("path/to/chessboard_image.jpg", show=True)
+```
+
+### Direct YOLO Usage
+
+```python
+from ultralytics import YOLO
+
+# Load the model
+model = YOLO("path/to/downloaded/model.pt")
+
+# Run segmentation
+results = model("path/to/chessboard_image.jpg")
+
+# Get masks and polygons
+for result in results:
+    if result.masks is not None:
+        for mask in result.masks:
+            polygon = mask.xy[0]  # Polygon coordinates
+            print(f"Polygon points: {polygon}")
+```
+
+### Training Data Format
+
+This model expects YOLO segmentation format with polygon annotations:
+
+```yaml
+# data.yaml
+train: path/to/train/images
+val: path/to/val/images
+nc: 1
+names: ['chessboard']
+```
+
+With corresponding label files containing polygon coordinates:
+```
+# labels/image.txt
+0 x1 y1 x2 y2 x3 y3 x4 y4 ...  # normalized coordinates
+```
+
+## Training
+
+This model was trained using the ChessBoard Segmentation training pipeline:
+
+```bash
+python src/chess_board_detection/yolo/segmentation/train_segmentation.py \\
+    --data data/chessboard_segmentation/chess-board-3/data.yaml \\
+    --epochs 100 \\
+    --batch 16 \\
+    --pretrained-model yolov8s-seg.pt
+```
+"""
+    
+    # Common footer
+    model_card += f"""
+## Model Performance
+
+<!-- Add performance metrics here after training -->
 
 ## Citation
 
@@ -330,9 +478,13 @@ If you use this model in your research, please cite:
     
     return model_card
 
-def upload_model(model, args) -> bool:
-    """Upload the model to HuggingFace Hub."""
+def upload_model(model_path: Path, args) -> bool:
+    """Upload the model to HuggingFace Hub using HF Hub API."""
     try:
+        from huggingface_hub import HfApi
+        import tempfile
+        import shutil
+        
         if args.dry_run:
             print("🔍 DRY RUN - Would upload model with following configuration:")
             print(f"   Repository: {args.repo_name}")
@@ -345,14 +497,64 @@ def upload_model(model, args) -> bool:
         if args.verbose:
             print(f"🚀 Uploading model to: {args.repo_name}")
         
-        # Upload using the model's built-in method
-        model.push_to_huggingface(
-            repo_id=args.repo_name,
-            private=args.private,
-            create_model_card=True
-        )
+        # Initialize HuggingFace API
+        api = HfApi()
         
-        return True
+        # Create repository if it doesn't exist
+        try:
+            api.create_repo(
+                repo_id=args.repo_name,
+                private=args.private,
+                exist_ok=True
+            )
+            print(f"✅ Repository {args.repo_name} created/verified")
+        except Exception as e:
+            print(f"❌ Failed to create repository: {e}")
+            return False
+        
+        # Create temporary directory for files to upload
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            
+            # Copy model file
+            model_dest = temp_path / "model.pt"
+            shutil.copy2(model_path, model_dest)
+            print(f"📁 Model copied to temporary directory")
+            
+            # Create model card
+            model_card_content = create_model_card(args, model_path)
+            readme_path = temp_path / "README.md"
+            readme_path.write_text(model_card_content)
+            print(f"📝 Model card created")
+            
+            # Copy additional files if specified
+            if args.include_training_dir:
+                training_dir = model_path.parent.parent
+                if training_dir.exists():
+                    training_dest = temp_path / "training"
+                    shutil.copytree(training_dir, training_dest)
+                    print(f"📂 Training directory copied")
+            
+            if args.example_images:
+                example_dir = Path(args.example_images)
+                if example_dir.exists():
+                    examples_dest = temp_path / "examples"
+                    shutil.copytree(example_dir, examples_dest)
+                    print(f"🖼️ Example images copied")
+            
+            # Upload all files
+            try:
+                api.upload_folder(
+                    folder_path=temp_dir,
+                    repo_id=args.repo_name,
+                    commit_message=f"Upload {args.model_type} {args.model_task} model"
+                )
+                print(f"✅ Files uploaded successfully")
+                return True
+                
+            except Exception as e:
+                print(f"❌ Upload failed: {e}")
+                return False
         
     except Exception as e:
         print(f"❌ Upload failed: {e}")
@@ -362,13 +564,17 @@ def main():
     """Main function for HuggingFace upload CLI."""
     args = parse_args()
     
+    # Set task-specific defaults
+    set_task_defaults(args)
+    
     if not validate_args(args):
         sys.exit(1)
     
     # ========================================
     # Pre-flight Checks
     # ========================================
-    print("🤗 ChessBoard Corner Detection - HuggingFace Upload")
+    task_name = args.model_task.title().replace('-', ' ')
+    print(f"🤗 ChessBoard {task_name} - HuggingFace Upload")
     print("=" * 60)
     
     if not args.dry_run:
@@ -379,9 +585,10 @@ def main():
     # ========================================
     # Load Model
     # ========================================
-    model = load_model_for_upload(Path(args.model), args.verbose)
+    model = load_model_for_upload(Path(args.model), args.model_task, args.verbose)
     if not model:
-        sys.exit(1)
+        print("⚠️  Model validation failed, but proceeding with upload...")
+        model = None
     
     # ========================================
     # Upload Configuration
@@ -406,7 +613,7 @@ def main():
     # ========================================
     print(f"\n🚀 Starting upload...")
     
-    success = upload_model(model, args)
+    success = upload_model(Path(args.model), args)
     
     if success:
         print("\n" + "=" * 60)

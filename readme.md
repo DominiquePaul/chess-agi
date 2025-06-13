@@ -50,6 +50,8 @@ The detailed guide covers:
 ## Important links:
 
 - **Hugging Face Profile**: https://huggingface.co/dopaul
+- **Trained Models**:
+  - [Chess Board Segmentation](https://huggingface.co/dopaul/chess_board_segmentation) - YOLO segmentation model for precise board boundary detection
 - **Chess Datasets**:
   - [Merged Dataset (Recommended)](https://huggingface.co/datasets/dopaul/chess-pieces-merged) - Combined dataset for training
   - [Dominique Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-dominique) - Individual dataset from Roboflow
@@ -118,16 +120,65 @@ python src/chess_board_detection/download_data.py \
     --version 3 \
     --data-dir data/chessboard_segmentation
 
-# Train segmentation model
+# Train segmentation model with default settings (YOLOv8n-seg)
 python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
-    --data data/chessboard_segmentation/chess-board-i0ptl-3/data.yaml \
+    --data data/chessboard_segmentation/chess-board-3/data.yaml \
+    --epochs 100
+
+# Train with larger model for better accuracy
+python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
+    --data data/chessboard_segmentation/chess-board-3/data.yaml \
+    --pretrained-model yolov8s-seg.pt \
     --epochs 100 \
-    --batch 16
+    --batch 16 \
+    --name polygon_segmentation_training
+
+# View all training options
+python src/chess_board_detection/yolo/segmentation/train_segmentation.py --help
 
 # Test segmentation model
 python src/chess_board_detection/yolo/segmentation/test_segmentation.py \
-    --model models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt \
+    --model artifacts/models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt \
     --image path/to/test_image.jpg
+```
+
+#### Upload Models to Hugging Face
+
+Once you've trained your models, you can easily upload them to Hugging Face Hub for sharing and deployment.
+
+```bash
+# First, login to Hugging Face
+huggingface-cli login
+
+# Upload corner detection model
+python src/chess_board_detection/upload_hf.py \
+    --model models/chess_board_detection/corner_detection_training/weights/best.pt \
+    --repo-name yourusername/chess-corner-detector \
+    --model-task corner-detection
+
+# Upload segmentation model
+python src/chess_board_detection/upload_hf.py \
+    --model artifacts/models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt \
+    --repo-name yourusername/chess-segmentation \
+    --model-task segmentation
+
+# Upload with custom metadata and training logs
+python src/chess_board_detection/upload_hf.py \
+    --model artifacts/models/chess_board_segmentation/training/weights/best.pt \
+    --repo-name yourusername/chess-board-segmentation \
+    --model-task segmentation \
+    --description "High-accuracy YOLO segmentation model for chess board polygon detection" \
+    --tags computer-vision,chess,yolo,segmentation,polygon-detection \
+    --license mit \
+    --include-training-dir \
+    --verbose
+
+# Test upload without actually uploading
+python src/chess_board_detection/upload_hf.py \
+    --model path/to/model.pt \
+    --repo-name yourusername/model-name \
+    --model-task segmentation \
+    --dry-run
 ```
 
 ## Usage Examples
@@ -173,9 +224,13 @@ if is_valid:
 ### Chessboard Segmentation
 ```python
 from src.chess_board_detection.yolo.segmentation.segmentation_model import ChessBoardSegmentationModel
+from ultralytics import YOLO
 
-# Load segmentation model
-seg_model = ChessBoardSegmentationModel(model_path="models/segmentation.pt")
+# Load segmentation model from local path
+seg_model = ChessBoardSegmentationModel(model_path="artifacts/models/chess_board_segmentation/training/weights/best.pt")
+
+# Or load directly from Hugging Face
+yolo_model = YOLO("dopaul/chess_board_segmentation")
 
 # Get precise polygon coordinates
 polygon_info, is_valid = seg_model.get_polygon_coordinates("image.jpg")
@@ -189,6 +244,10 @@ if is_valid:
     print(f"Detected {len(coordinates)} polygon points")
     for i, point in enumerate(coordinates):
         print(f"Point {i}: ({point['x']:.1f}, {point['y']:.1f})")
+
+# Extract corners from segmentation for board alignment
+corners = seg_model.extract_corners_from_segmentation("image.jpg", polygon_info)
+print(f"Extracted corners: {corners}")
 ```
 
 ## 🔧 Troubleshooting

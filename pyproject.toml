@@ -7,29 +7,31 @@ name = "chesso"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
-    "cairosvg>=2.8.2",
-    "chess>=1.11.2",
-    "datasets>=3.6.0",
-    "huggingface-hub>=0.32.5",
-    "ipykernel>=6.29.5",
-    "ipython>=9.2.0",
-    "kaggle>=1.7.4.5",
-    "kagglehub>=0.3.12",
-    "matplotlib>=3.10.3",
-    "opencv-python>=4.11.0.86",
-    "pillow>=11.2.1",
-    "pipwin>=0.5.2",
-    "pyyaml>=6.0.2",
-    "roboflow>=1.1.64",
-    "ruff>=0.11.10",
-    "scipy>=1.15.3",
-    "svglib>=1.5.1",
-    "timm>=1.0.15",
-    "ultralytics>=8.3.140",
-    "wandb>=0.20.1",
+    "cairosvg",
+    "chess",
+    "datasets",
+    "ffmpeg-python",
+    "huggingface-hub",
+    "ipykernel",
+    "ipython",
+    "kaggle",
+    "kagglehub",
+    "matplotlib",
+    "opencv-python",
+    "pillow",
+    "pipwin",
+    "pyyaml",
+    "roboflow",
+    "ruff",
+    "scikit-learn>=1.7.0",
+    "scipy",
+    "svglib",
+    "timm",
+    "ultralytics",
+    "wandb",
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["."] 

@@ -1,6 +1,7 @@
 .cursorrules
 artifacts/**
 artifacts/
+*.pt
 
 # Editors
 .vscode/

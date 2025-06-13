@@ -16,17 +16,17 @@ Usage:
     
     # Custom training parameters
     python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
-        --data data/chessboard_corners/chess-board-box-3/data.yaml \
+        --data data/chessboard_segmentation/chess-board-3/data.yaml \
         --pretrained-model yolov8s-seg.pt \
         --epochs 100 \
         --batch 16 \
         --imgsz 640
     
     # Complete example with all options
-    python src/chess_board_detection/yolo/train_segmentation.py \
-        --data data/chessboard_corners/chess-board-box-3/data.yaml \
+    python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
+        --data data/chessboard_segmentation/chess-board-3/data.yaml \
         --pretrained-model yolov8l-seg.pt \
-        --models-folder models/chess_board_segmentation \
+        --models-folder artifacts/models/chess_board_segmentation \
         --name polygon_segmentation_training \
         --epochs 100 \
         --batch 16 \
@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument(
         "--data", 
         type=str, 
-        default="data/chessboard_segmentation/chessboard-3/data.yaml",
+        default="data/chessboard_segmentation/chess-board-3/data.yaml",
         help="Path to YOLO dataset YAML file containing polygon annotations"
     )
     parser.add_argument(
@@ -83,7 +83,7 @@ def parse_args():
     parser.add_argument(
         "--models-folder", 
         type=str, 
-        default="models/chess_board_segmentation",
+        default="artifacts/models/chess_board_segmentation",
         help="Root folder where trained models will be saved"
     )
     parser.add_argument(
@@ -336,7 +336,7 @@ def main():
     print("   Python: model.plot_eval('path/to/test_image.jpg')")
     print("   Python: polygon = model.get_polygon_coordinates('image.jpg')")
     if best_model_path and best_model_path.exists():
-        print(f"   CLI:    python src/chess_board_detection/test_segmentation.py --model {best_model_path} --image path/to/image.jpg")
+        print(f"   CLI:    python src/chess_board_detection/yolo/segmentation/test_segmentation.py --model {best_model_path} --image path/to/image.jpg")
     
     print("\n2️⃣  Get polygon coordinates as JSON:")
     print("   Python: polygon, is_valid = model.get_polygon_coordinates('image.jpg')")
@@ -344,7 +344,7 @@ def main():
     
     print("\n3️⃣  Batch test multiple images:")
     if best_model_path and best_model_path.exists():
-        print(f"   CLI:    python src/chess_board_detection/test_segmentation.py --model {best_model_path} --input-dir path/to/images/")
+        print(f"   CLI:    python src/chess_board_detection/yolo/segmentation/test_segmentation.py --model {best_model_path} --input-dir path/to/images/")
     
     print("\n💡 Key Differences from Detection Model:")
     print("   🔹 Learns exact polygon boundaries (not just corner points)")
