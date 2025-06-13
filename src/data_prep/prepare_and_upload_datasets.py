@@ -86,7 +86,7 @@ def download_dominique_chess_pieces():
     """Download Dominique's chess pieces dataset from Roboflow"""
     print("\n📦 Downloading Chess Pieces Dataset (Dominique)...")
     print("   📊 Dataset: Chess piece detection with 12 classes")  
-    print("   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/6)")
+    print("   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/8)")
     print("   🎯 Purpose: Training chess piece detection models (enhanced)")
     
     try:
@@ -94,7 +94,7 @@ def download_dominique_chess_pieces():
             "roboflow", "download", 
             "-f", "yolov8",
             "-l", str(DATA_FOLDER_PATH / "chess_pieces_dominique"),
-            "gustoguardian/chess-piece-detection-bltvi/6"
+            "gustoguardian/chess-piece-detection-bltvi/8"
         ]
         
         result = subprocess.run(cmd, capture_output=True, text=True)

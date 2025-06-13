@@ -12,7 +12,7 @@ This module provides a complete pipeline for downloading, processing, and upload
 
 - **`chesspieces_dominique`** - Chess pieces from Dominique's Roboflow project
   - 12 chess piece classes (enhanced dataset)
-  - Source: Roboflow (`gustoguardian/chess-piece-detection-bltvi/6`)
+  - Source: Roboflow (`gustoguardian/chess-piece-detection-bltvi/8`)
   - Purpose: Training enhanced chess piece detection models
 
 ### Chessboard Corner Detection
@@ -355,7 +355,7 @@ python src/chess_board_detection/download_data.py \
 
 📦 Downloading Chess Pieces Dataset (Dominique)...
    📊 Dataset: Chess piece detection with 12 classes
-   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/6)
+   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/8)
    🎯 Purpose: Training chess piece detection models (enhanced)
 ✅ Chess pieces dataset (Dominique) downloaded successfully
 

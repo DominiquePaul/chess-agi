@@ -13,14 +13,14 @@ from src.base_model import BaseYOLOModel
 class ChessModel(BaseYOLOModel):
     """Model for detecting chess pieces using YOLO."""
 
-    def __init__(self, model_path: Path | None = None, device=None, pretrained_checkpoint: str = "yolov8s.pt"):
+    def __init__(self, model_path: Path | None = None, device=None, pretrained_checkpoint: str = "yolo11s.pt"):
         """
-        Initialize ChessModel with YOLOv8s as default pretrained checkpoint.
+        Initialize ChessModel with YOLO11s as default pretrained checkpoint.
         
         Args:
             model_path: Path to existing trained model (optional)
             device: Device to run model on (auto-detected if None)
-            pretrained_checkpoint: Pretrained YOLO checkpoint to use (default: yolov8s.pt)
+            pretrained_checkpoint: Pretrained YOLO checkpoint to use (default: yolo11s.pt)
         """
         super().__init__(model_path, device, pretrained_checkpoint)
 
@@ -90,9 +90,9 @@ if __name__ == "__main__":
 
     single_eval_img_path = Path(os.environ["DATA_FOLDER_PATH"]) / "eval_images/chess_2.jpeg"
     
-    # Create new model with YOLOv8s pretrained checkpoint for training
-    print("=== Creating new model with YOLOv8s checkpoint ===")
-    new_model = ChessModel(pretrained_checkpoint="yolov8s.pt")
+    # Create new model with YOLO11s pretrained checkpoint for training
+    print("=== Creating new model with YOLO11s checkpoint ===")
+    new_model = ChessModel(pretrained_checkpoint="yolo11s.pt")
     
     # Example: Train the model (uncomment when you have your dataset ready)
     # data_yaml_path = Path("path/to/your/chess_dataset.yaml")
@@ -138,8 +138,8 @@ if __name__ == "__main__":
         print("=== No existing trained models found ===")
         print("Run model training first to compare results")
         
-    # Test the new YOLOv8s model on sample image
-    print("=== Testing YOLOv8s model on sample image ===")
+    # Test the new YOLO11s model on sample image
+    print("=== Testing YOLO11s model on sample image ===")
     new_model.plot_eval(single_eval_img_path, conf=0.1)
 
     # ### Video

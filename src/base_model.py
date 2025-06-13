@@ -15,11 +15,11 @@ from PIL import Image
 
 from src.utils import is_notebook, get_best_torch_device, push_model_to_huggingface
 
-try:
-    from huggingface_hub import hf_hub_download, list_repo_files
-except ImportError:
-    hf_hub_download = None
-    list_repo_files = None
+# W&B integration
+import wandb
+from wandb.integration.ultralytics import add_wandb_callback
+
+from huggingface_hub import hf_hub_download, list_repo_files
 
 
 class BaseYOLOModel:
@@ -172,9 +172,12 @@ class BaseYOLOModel:
               # Advanced training parameters  
               warmup_epochs: float = 3.0, warmup_momentum: float = 0.8, warmup_bias_lr: float = 0.1,
               box: float = 7.5, cls: float = 0.5, dfl: float = 1.5,
+              # W&B integration parameters
+              use_wandb: bool = False, wandb_project: str | None = None, wandb_name: str | None = None,
+              wandb_tags: list | None = None, wandb_notes: str | None = None,
               **kwargs):
         """
-        Train the YOLO model with extensive customization options.
+        Train the YOLO model with extensive customization options and optional W&B tracking.
         
         Args:
             data_path: Path to dataset YAML file
@@ -213,47 +216,127 @@ class BaseYOLOModel:
             box: Box loss gain
             cls: Classification loss gain
             dfl: Distribution focal loss gain
+            
+            # W&B parameters
+            use_wandb: Enable W&B tracking
+            wandb_project: W&B project name (defaults to 'chess-piece-detection')
+            wandb_name: W&B run name (defaults to training name)
+            wandb_tags: List of tags for W&B run
+            wandb_notes: Notes for W&B run
             **kwargs: Additional arguments passed to YOLO.train()
         """
-        results = self.model.train(
-            data=data_path,
-            epochs=epochs,
-            batch=batch,
-            lr0=lr0,
-            lrf=lrf,
-            imgsz=imgsz,
-            plots=plots,
-            device=self.device,
-            project=project,
-            name=name,
-            save_period=save_period,
-            patience=patience,
-            optimizer=optimizer,
-            weight_decay=weight_decay,
-            # Data augmentation
-            hsv_h=hsv_h,
-            hsv_s=hsv_s,
-            hsv_v=hsv_v,
-            degrees=degrees,
-            translate=translate,
-            scale=scale,
-            shear=shear,
-            perspective=perspective,
-            flipud=flipud,
-            fliplr=fliplr,
-            mosaic=mosaic,
-            mixup=mixup,
-            copy_paste=copy_paste,
-            # Advanced parameters
-            warmup_epochs=warmup_epochs,
-            warmup_momentum=warmup_momentum,
-            warmup_bias_lr=warmup_bias_lr,
-            box=box,
-            cls=cls,
-            dfl=dfl,
-            **kwargs
-        )
-        return results
+        # Initialize W&B if requested
+        wandb_run = None
+        if use_wandb:
+            
+            # Set up W&B configuration
+            wandb_config = {
+                "epochs": epochs,
+                "batch_size": batch,
+                "learning_rate": lr0,
+                "final_lr": lr0 * lrf,
+                "image_size": imgsz,
+                "optimizer": optimizer,
+                "weight_decay": weight_decay,
+                "patience": patience,
+                "save_period": save_period,
+                # Data augmentation config
+                "hsv_h": hsv_h,
+                "hsv_s": hsv_s,
+                "hsv_v": hsv_v,
+                "degrees": degrees,
+                "translate": translate,
+                "scale": scale,
+                "shear": shear,
+                "perspective": perspective,
+                "flipud": flipud,
+                "fliplr": fliplr,
+                "mosaic": mosaic,
+                "mixup": mixup,
+                "copy_paste": copy_paste,
+                # Advanced parameters
+                "warmup_epochs": warmup_epochs,
+                "warmup_momentum": warmup_momentum,
+                "warmup_bias_lr": warmup_bias_lr,
+                "box_loss": box,
+                "cls_loss": cls,
+                "dfl_loss": dfl,
+                # Model info
+                "pretrained_checkpoint": self.pretrained_checkpoint,
+                "device": str(self.device),
+                "dataset_path": str(data_path),
+            }
+            
+            # Initialize W&B run
+            try:
+                wandb_run = wandb.init(
+                    project=wandb_project or "chess-piece-detection",
+                    name=wandb_name or name or "yolo-training",
+                    config=wandb_config,
+                    tags=wandb_tags or ["chess", "yolo", "object-detection"],
+                    notes=wandb_notes,
+                    reinit=True
+                )
+                
+                # Add W&B callback to model
+                add_wandb_callback(self.model, enable_model_checkpointing=True)
+                print(f"✅ W&B tracking initialized: {wandb_run.url}")
+                
+            except Exception as e:
+                print(f"⚠️  Failed to initialize W&B: {e}")
+                print("   Continuing training without W&B tracking...")
+                wandb_run = None
+        
+        try:
+            results = self.model.train(
+                data=data_path,
+                epochs=epochs,
+                batch=batch,
+                lr0=lr0,
+                lrf=lrf,
+                imgsz=imgsz,
+                plots=plots,
+                device=self.device,
+                project=project,
+                name=name,
+                save_period=save_period,
+                patience=patience,
+                optimizer=optimizer,
+                weight_decay=weight_decay,
+                # Data augmentation
+                hsv_h=hsv_h,
+                hsv_s=hsv_s,
+                hsv_v=hsv_v,
+                degrees=degrees,
+                translate=translate,
+                scale=scale,
+                shear=shear,
+                perspective=perspective,
+                flipud=flipud,
+                fliplr=fliplr,
+                mosaic=mosaic,
+                mixup=mixup,
+                copy_paste=copy_paste,
+                # Advanced parameters
+                warmup_epochs=warmup_epochs,
+                warmup_momentum=warmup_momentum,
+                warmup_bias_lr=warmup_bias_lr,
+                box=box,
+                cls=cls,
+                dfl=dfl,
+                **kwargs
+            )
+            
+            return results
+            
+        finally:
+            # Clean up W&B run if it was initialized
+            if wandb_run is not None:
+                try:
+                    wandb.finish()
+                    print("✅ W&B run completed and logged")
+                except Exception as e:
+                    print(f"⚠️  Warning: Failed to properly finish W&B run: {e}")
 
     def evaluate(self, data_path: Path, conf: float = 0.25, iou: float = 0.5):
         """

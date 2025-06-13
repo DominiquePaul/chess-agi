@@ -1,31 +1,56 @@
 #!/usr/bin/env python3
 """
-Training script for Chess Piece Detection Model using YOLO
+Training script for Chess Piece Detection Model using YOLO11
 
-This script trains a YOLO object detection model to detect and classify chess pieces
-from annotated chess board images.
+This script trains a YOLO11 object detection model to detect and classify chess pieces
+from annotated chess board images using the latest YOLO architecture.
 
 Usage:
-    # Basic training with default settings (YOLOv8s COCO pretrained)
+    # Basic training with default settings (YOLO11s COCO pretrained)
     python src/chess_piece_detection/train.py --epochs 100
     
     # Choose different COCO-pretrained model size
     python src/chess_piece_detection/train.py \
-        --pretrained-model yolov8m.pt \
+        --data data/chess_pieces_merged/data.yaml \
+        --pretrained-model yolo11s.pt \
+        --batch 64 \
+        --epochs 100 \
+        --lr 0.001 \
+        --lrf 0.1 \
+        --mosaic 0.5 \
+        --mixup 0.0 \
+        --copy-paste 0.0 \
+        --degrees 5.0
+
+    uv run python src/chess_piece_detection/train.py \
+        --data data/chess_pieces_merged/data.yaml \
+        --pretrained-model yolo11l.pt \
+        --batch 16 \
         --epochs 100
     
     # Custom training parameters
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
-        --pretrained-model yolov8s.pt \
+        --pretrained-model yolo11s.pt \
         --epochs 100 \
         --batch 16 \
         --imgsz 640
     
+    # Training with W&B tracking (auto-enabled if WANDB_API_KEY is set)
+    python src/chess_piece_detection/train.py \
+        --data data/chess_pieces_merged/data.yaml \
+        --pretrained-model yolo11s.pt \
+        --epochs 100 \
+        --batch 32 \
+        --wandb-project "chess-piece-detection" \
+        --wandb-name "yolo11s-experiment-1" \
+        --wandb-tags chess yolo object-detection \
+        --wandb-notes "Training chess piece detector with YOLO11s"
+    
     # Complete example with all options
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
-        --pretrained-model yolov8m.pt \
+        --pretrained-model yolo11m.pt \
         --models-folder models/chess_piece_detection \
         --name training_v3 \
         --epochs 100 \
@@ -41,14 +66,38 @@ Usage:
         --mosaic 1.0 \
         --mixup 0.1 \
         --optimizer AdamW \
+        --wandb-project "chess-piece-detection" \
+        --wandb-name "yolo11m-v3" \
+        --wandb-tags chess yolo training augmentation \
         --verbose
         
+    # Disable W&B tracking explicitly
+    python src/chess_piece_detection/train.py \
+        --epochs 100 \
+        --disable-wandb
+        
 Available COCO-pretrained models:
-    - yolov8n.pt (nano, ~6MB, fastest)
-    - yolov8s.pt (small, ~22MB, fast, recommended)  
-    - yolov8m.pt (medium, ~52MB, balanced)
-    - yolov8l.pt (large, ~104MB, accurate)
-    - yolov8x.pt (extra large, ~136MB, most accurate)
+    - yolo11n.pt (nano, ~2.6MB, fastest)
+    - yolo11s.pt (small, ~9.4MB, fast, recommended)  
+    - yolo11m.pt (medium, ~20.1MB, balanced)
+    - yolo11l.pt (large, ~25.3MB, accurate)
+    - yolo11x.pt (extra large, ~56.9MB, most accurate)
+
+W&B Integration:
+    The script automatically detects Weights & Biases environment and enables logging.
+    W&B is auto-enabled when:
+    - WANDB_API_KEY environment variable is set, OR
+    - You're logged in via 'wandb login', OR 
+    - Other wandb environment variables are detected
+    
+    Use --disable-wandb to explicitly turn off W&B logging.
+    
+    W&B will track:
+    - Training/validation loss and metrics
+    - Model hyperparameters
+    - Training images with predictions
+    - Model artifacts and checkpoints
+    - System metrics (GPU usage, etc.)
 """
 
 import argparse
@@ -56,6 +105,8 @@ import os
 from pathlib import Path
 from src.chess_piece_detection.model import ChessModel
 from dotenv import load_dotenv
+import wandb
+from typing import Optional
 
 # Load environment variables from .env file
 load_dotenv()
@@ -74,14 +125,31 @@ def parse_args():
         "--data", 
         type=str, 
         default=None,
-        help="Path to YOLO dataset YAML file. If not provided, uses DATA_FOLDER_PATH env var + chess_pieces_merged/data.yaml"
+        help="Path to YOLO dataset YAML file. If not provided, uses DATA_FOLDER_PATH env var + chess_pieces_merged/data.yaml, or auto-downloads from HF"
+    )
+    parser.add_argument(
+        "--hf-dataset", 
+        type=str, 
+        default="dopaul/chess-pieces-merged",
+        help="HuggingFace dataset to use if local data not found (default: dopaul/chess-pieces-merged)"
+    )
+    parser.add_argument(
+        "--auto-download-hf", 
+        action="store_true",
+        default=True,
+        help="Automatically download from HuggingFace if local dataset not found (default: True)"
+    )
+    parser.add_argument(
+        "--force-download-hf", 
+        action="store_true",
+        help="Force re-download from HuggingFace even if local dataset exists"
     )
     parser.add_argument(
         "--pretrained-model", 
         type=str, 
-        default="yolov8s.pt",
-        choices=["yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt"],
-        help="COCO-pretrained model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)"
+        default="yolo11s.pt",
+        choices=["yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt"],
+        help="COCO-pretrained YOLO11 model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)"
     )
     parser.add_argument(
         "--models-folder", 
@@ -92,7 +160,7 @@ def parse_args():
     parser.add_argument(
         "--name", 
         type=str, 
-        default="training_yolov8s",
+        default="training_yolo11s",
         help="Name for this training run (creates subfolder in models-folder)"
     )
     
@@ -289,7 +357,81 @@ def parse_args():
         help="Show verbose output including full error tracebacks"
     )
     
+    # ========================================
+    # W&B Integration Options
+    # ========================================
+    # Auto-detect wandb environment and set as default
+    wandb_detected = detect_wandb_environment()
+    parser.add_argument(
+        "--disable-wandb", 
+        action="store_true",
+        help=f"Disable Weights & Biases tracking (auto-detected: {'enabled' if wandb_detected else 'disabled'})"
+    )
+    parser.add_argument(
+        "--wandb-project", 
+        type=str, 
+        default="chess-piece-detection",
+        help="W&B project name"
+    )
+    parser.add_argument(
+        "--wandb-name", 
+        type=str, 
+        default=None,
+        help="W&B run name (defaults to training name)"
+    )
+    parser.add_argument(
+        "--wandb-tags", 
+        type=str, 
+        nargs="+",
+        default=None,
+        help="W&B tags for this run (space-separated)"
+    )
+    parser.add_argument(
+        "--wandb-notes", 
+        type=str, 
+        default=None,
+        help="Notes for W&B run"
+    )
+    
     return parser.parse_args()
+
+def detect_wandb_environment():
+    """
+    Detect if Weights & Biases environment is configured.
+    
+    Returns:
+        bool: True if wandb environment variables are detected
+    """
+    # Check common wandb environment variables
+    wandb_env_vars = [
+        "WANDB_API_KEY",
+        "WANDB_PROJECT", 
+        "WANDB_ENTITY",
+        "WANDB_BASE_URL"
+    ]
+    
+    # Check if wandb is installed and any env vars are set
+    try:
+        import wandb
+        wandb_available = True
+    except ImportError:
+        wandb_available = False
+    
+    # Check if any wandb environment variables are set
+    has_wandb_env = any(os.environ.get(var) for var in wandb_env_vars)
+    
+    # Check if user is logged in to wandb
+    wandb_logged_in = False
+    if wandb_available:
+        try:
+            # This will check if wandb is configured
+            import wandb
+            wandb_logged_in = wandb.api.api_key is not None
+        except:
+            pass
+    
+    return wandb_available and (has_wandb_env or wandb_logged_in)
+
 
 def get_default_data_path():
     """Get default data path from environment variable."""
@@ -298,8 +440,94 @@ def get_default_data_path():
         return None
     return Path(data_folder) / "chess_pieces_merged" / "data.yaml"
 
+
+def auto_download_hf_dataset(hf_repo: str, force_download: bool = False) -> Optional[Path]:
+    """
+    Auto-download chess piece dataset from HuggingFace if not available locally.
+    
+    Args:
+        hf_repo: HuggingFace repository name (e.g., "dopaul/chess-pieces-merged")
+        force_download: Force re-download even if local dataset exists
+        
+    Returns:
+        Path to data.yaml file if successful, None if failed
+    """
+    try:
+        # Import here to avoid dependency issues if not needed
+        from src.data_prep.download_from_hf import download_dataset, DATASET_LOCAL_NAMES
+        
+        # Get local path
+        data_folder = os.environ.get("DATA_FOLDER_PATH")
+        if not data_folder:
+            print("❌ DATA_FOLDER_PATH environment variable not set")
+            return None
+            
+        data_path = Path(data_folder)
+        
+        # Determine local dataset name
+        local_name = DATASET_LOCAL_NAMES.get(hf_repo)
+        if not local_name:
+            # Create local name from repo name
+            local_name = hf_repo.split("/")[-1].replace("-", "_")
+            
+        local_dataset_path = data_path / local_name
+        data_yaml_path = local_dataset_path / "data.yaml"
+        
+        # Check if dataset already exists
+        if data_yaml_path.exists() and not force_download:
+            print(f"✅ Found existing dataset at: {data_yaml_path}")
+            return data_yaml_path
+            
+        # Download dataset
+        print(f"📥 Auto-downloading dataset from HuggingFace: {hf_repo}")
+        print(f"📁 Saving to: {local_dataset_path}")
+        
+        success = download_dataset(hf_repo, local_name, data_path, convert_to_yolo=True)
+        
+        if success and data_yaml_path.exists():
+            print(f"✅ Successfully downloaded and converted dataset to: {data_yaml_path}")
+            return data_yaml_path
+        else:
+            print(f"❌ Failed to download dataset from {hf_repo}")
+            return None
+            
+    except ImportError:
+        print("❌ Cannot import HuggingFace download functionality")
+        print("💡 Please ensure 'datasets' and 'huggingface_hub' are installed")
+        return None
+    except Exception as e:
+        print(f"❌ Error downloading dataset: {e}")
+        return None
+
 def validate_args(args):
     """Validate command line arguments and show helpful error messages."""
+    
+    # ========================================
+    # W&B Configuration
+    # ========================================
+    # Determine if wandb should be used based on environment detection and user flags
+    wandb_detected = detect_wandb_environment()
+    args.use_wandb = wandb_detected and not args.disable_wandb
+    
+    if wandb_detected and args.disable_wandb:
+        print("🔕 W&B environment detected but explicitly disabled via --disable-wandb")
+    elif wandb_detected and args.use_wandb:
+        print("✅ W&B environment detected - automatic logging enabled")
+    elif not wandb_detected:
+        print("ℹ️  W&B environment not detected - logging disabled")
+        
+    # Handle force download first
+    if args.force_download_hf:
+        print(f"🔄 Force downloading dataset from HuggingFace: {args.hf_dataset}")
+        downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=True)
+        if downloaded_path:
+            args.data = str(downloaded_path)
+            print(f"✅ Using force-downloaded dataset: {args.data}")
+            return True
+        else:
+            print("❌ Failed to force download dataset from HuggingFace")
+            return False
+    
     # Handle default data path
     if args.data is None:
         default_data = get_default_data_path()
@@ -307,19 +535,39 @@ def validate_args(args):
             args.data = str(default_data)
             print(f"🔍 Using default dataset: {args.data}")
         else:
+            # Try auto-download from HuggingFace
+            if args.auto_download_hf:
+                print(f"🔍 Local dataset not found, attempting auto-download from HuggingFace: {args.hf_dataset}")
+                downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=False)
+                if downloaded_path:
+                    args.data = str(downloaded_path)
+                    print(f"✅ Using auto-downloaded dataset: {args.data}")
+                    return True
+            
             print("❌ Error: No dataset specified and default not found!")
             if not os.environ.get("DATA_FOLDER_PATH"):
                 print("💡 Please set DATA_FOLDER_PATH environment variable or use --data")
             else:
                 print(f"💡 Please create the default dataset at: {default_data}")
                 print("💡 Or specify a different dataset with --data")
+                print(f"💡 Or use --auto-download-hf to download from HuggingFace: {args.hf_dataset}")
             return False
     
     # Check if dataset file exists
     data_path = Path(args.data)
     if not data_path.exists():
+        # Try auto-download from HuggingFace if enabled
+        if args.auto_download_hf:
+            print(f"🔍 Dataset file '{data_path}' not found, attempting auto-download from HuggingFace: {args.hf_dataset}")
+            downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=False)
+            if downloaded_path:
+                args.data = str(downloaded_path)
+                print(f"✅ Using auto-downloaded dataset: {args.data}")
+                return True
+        
         print(f"❌ Error: Dataset file '{data_path}' does not exist!")
         print(f"💡 Please create the dataset or specify a different path with --data")
+        print(f"💡 Or use --auto-download-hf to download from HuggingFace: {args.hf_dataset}")
         return False
         
     return True
@@ -359,7 +607,15 @@ def main():
     print(f"🔄 Flips: horizontal={args.fliplr}, vertical={args.flipud}")
     print(f"🧩 Advanced: mosaic={args.mosaic}, mixup={args.mixup}, copy-paste={args.copy_paste}")
     print(f"📊 Plots: {'Disabled' if args.no_plots else 'Enabled'}")
-    print("🎯 Model Type: YOLOv8 Object Detection (chess piece classification)")
+    print("🎯 Model Type: YOLO11 Object Detection (chess piece classification)")
+    print(f"📈 W&B Tracking: {'Enabled' if args.use_wandb else 'Disabled'}")
+    if args.use_wandb:
+        print(f"   Project: {args.wandb_project}")
+        print(f"   Run Name: {args.wandb_name or args.name}")
+        if args.wandb_tags:
+            print(f"   Tags: {', '.join(args.wandb_tags)}")
+        if args.wandb_notes:
+            print(f"   Notes: {args.wandb_notes}")
     print("=" * 70)
     
     # ========================================
@@ -407,6 +663,12 @@ def main():
             box=args.box_loss,
             cls=args.cls_loss,
             dfl=args.dfl_loss,
+            # W&B integration
+            use_wandb=args.use_wandb,
+            wandb_project=args.wandb_project,
+            wandb_name=args.wandb_name,
+            wandb_tags=args.wandb_tags,
+            wandb_notes=args.wandb_notes,
         )
         
         # Print training summary
@@ -516,12 +778,12 @@ def main():
     print("   Usually includes: King, Queen, Rook, Bishop, Knight, Pawn (for both colors)")
     
     print("\n💡 COCO Pretrained Models Available:")
-    print("   🔹 yolov8n.pt (nano, ~6MB, fastest)")
-    print("   🔹 yolov8s.pt (small, ~22MB, fast, recommended)")
-    print("   🔹 yolov8m.pt (medium, ~52MB, balanced)")
-    print("   🔹 yolov8l.pt (large, ~104MB, accurate)")
-    print("   🔹 yolov8x.pt (extra large, ~136MB, most accurate)")
-    print("   Use: --pretrained-model yolov8m.pt")
+    print("   🔹 yolo11n.pt (nano, ~2.6MB, fastest)")
+    print("   🔹 yolo11s.pt (small, ~9.4MB, fast, recommended)")
+    print("   🔹 yolo11m.pt (medium, ~20.1MB, balanced)")
+    print("   🔹 yolo11l.pt (large, ~25.3MB, accurate)")
+    print("   🔹 yolo11x.pt (extra large, ~56.9MB, most accurate)")
+    print("   Use: --pretrained-model yolo11m.pt")
     
     print("\n💡 More CLI options:")
     print("   • Add --help to see all available parameters")

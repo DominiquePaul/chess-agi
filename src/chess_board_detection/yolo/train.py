@@ -6,17 +6,16 @@ This script trains a YOLO model to detect the 4 corners of a chessboard.
 
 Usage:
     # Basic training with default settings
-    python src/chess_board_detection/train.py --epochs 100
-
+    python src/chess_board_detection/yolo/train.py --epochs 100
     
     # Run from project root as module
-    python -m src.chess_board_detection.train
+    python -m src.chess_board_detection.yolo.train
     
     # Custom training parameters
-    python src/chess_board_detection/train.py --data data/my_dataset.yaml --epochs 100 --batch 32
+    python src/chess_board_detection/yolo/train.py --data data/my_dataset.yaml --epochs 100 --batch 32
     
     # Complete example with all options and HuggingFace upload
-    python src/chess_board_detection/train.py \
+    python src/chess_board_detection/yolo/train.py \
         --data data/chessboard_corners/data.yaml \
         --models-folder models/chess_board_detection \
         --name my_corner_training \
