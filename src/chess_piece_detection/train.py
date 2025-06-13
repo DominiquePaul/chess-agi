@@ -86,7 +86,7 @@ if data_roboflow_yaml_path.exists():
 
 # Push model to Hugging Face Hub
 model.push_to_huggingface(
-    repo_id="chess-piece-detector-merged-v2",
+    repo_id="chess-piece-detector",
     commit_message="Upload improved chess piece detection model with enhanced training (100 epochs, data augmentation, AdamW optimizer)",
     private=False
 )
