@@ -77,18 +77,18 @@ Make sure that you've downloaded the data first.
 Train a YOLO object detection model to identify and classify chess pieces on board images.
 
 ```bash
-# Basic training with default settings (YOLOv8s COCO pretrained)
+# Basic training with default settings (YOLO11s COCO pretrained)
 python src/chess_piece_detection/train.py --epochs 100
 
 # Choose different COCO-pretrained model size
 python src/chess_piece_detection/train.py \
-    --pretrained-model yolov8m.pt \
+    --pretrained-model yolo11m.pt \
     --epochs 100
 
 # Custom training parameters
 python src/chess_piece_detection/train.py \
     --data data/chess_pieces_merged/data.yaml \
-    --pretrained-model yolov8s.pt \
+    --pretrained-model yolo11s.pt \
     --epochs 100 \
     --batch 16 \
     --imgsz 640
@@ -96,7 +96,7 @@ python src/chess_piece_detection/train.py \
 # Complete example with all options
 python src/chess_piece_detection/train.py \
     --data data/chess_pieces_merged/data.yaml \
-    --pretrained-model yolov8m.pt \
+    --pretrained-model yolo11m.pt \
     --models-folder models/chess_piece_detection \
     --name training_v3 \
     --epochs 100 \
@@ -119,12 +119,12 @@ python src/chess_piece_detection/train.py \
 # View all training options
 python src/chess_piece_detection/train.py --help
 
-# Available COCO-pretrained models:
-#   - yolov8n.pt (nano, ~6MB, fastest)
-#   - yolov8s.pt (small, ~22MB, fast, recommended)  
-#   - yolov8m.pt (medium, ~52MB, balanced)
-#   - yolov8l.pt (large, ~104MB, accurate)
-#   - yolov8x.pt (extra large, ~136MB, most accurate)
+# Available COCO-pretrained models (YOLO11 - latest architecture):
+#   - yolo11n.pt (nano, ~2.6M params, fastest)
+#   - yolo11s.pt (small, ~9.4M params, fast, recommended)  
+#   - yolo11m.pt (medium, ~20.1M params, balanced)
+#   - yolo11l.pt (large, ~25.3M params, accurate)
+#   - yolo11x.pt (extra large, ~56.9M params, most accurate)
 
 # Run inference example
 python -m src.chess_piece_detection.inference_example
@@ -169,7 +169,7 @@ python src/chess_board_detection/download_data.py \
     --version 3 \
     --data-dir data/chessboard_segmentation
 
-# Train segmentation model with default settings (YOLOv8n-seg)
+# Train segmentation model with default settings (YOLO11n-seg)
 python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
     --data data/chessboard_segmentation/chess-board-3/data.yaml \
     --epochs 100
@@ -177,7 +177,7 @@ python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
 # Train with larger model for better accuracy
 python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
     --data data/chessboard_segmentation/chess-board-3/data.yaml \
-    --pretrained-model yolov8s-seg.pt \
+    --pretrained-model yolo11s-seg.pt \
     --epochs 100 \
     --batch 16 \
     --name polygon_segmentation_training
@@ -271,8 +271,8 @@ from src.chess_piece_detection.model import ChessModel
 model = ChessModel.from_huggingface("username/chess-piece-detector")
 
 # Or create new model with pretrained checkpoint (for training/transfer learning)
-model = ChessModel(pretrained_checkpoint="yolov8s.pt")  # Uses YOLOv8s by default
-model = ChessModel(pretrained_checkpoint="yolov8m.pt")  # Use larger model
+model = ChessModel(pretrained_checkpoint="yolo11s.pt")  # Uses YOLO11s by default
+model = ChessModel(pretrained_checkpoint="yolo11m.pt")  # Use larger model
 
 # Or load your own trained model
 model = ChessModel(model_path="models/chess_piece_detection/training_v3/weights/best.pt")
