@@ -5,10 +5,10 @@ Chess Board Analyzer CLI
 USAGE:
 ======
 # Basic analysis
-python examples/analyze_chess_board.py --image data/eval_images/chess_4.jpeg
+python scripts/analyze_chess_board.py --image data/eval_images/chess_4.jpeg
 
 # All options with default values (only --image is required)
-python examples/analyze_chess_board.py --image <path> \
+python scripts/analyze_chess_board.py --image <path> \
     --segmentation-model dopaul/chess_board_segmentation \
     --piece-model dopaul/chess_piece_detection \
     --corner-method approx \
@@ -18,28 +18,28 @@ python examples/analyze_chess_board.py --image <path> \
     [--no-visualization] [--skip-piece-detection] [--verbose] [--squares <squares>] [--json]
 
 # With custom confidence threshold
-python examples/analyze_chess_board.py --image chess.jpg --conf 0.6
+python scripts/analyze_chess_board.py --image chess.jpg --conf 0.6
 
 # Save visualization
-python examples/analyze_chess_board.py --image chess.jpg --output results/
+python scripts/analyze_chess_board.py --image chess.jpg --output results/
 
 # Use custom models (local paths or HuggingFace models)
-python examples/analyze_chess_board.py --image chess.jpg --segmentation-model path/to/model.pt --piece-model dopaul/chess_piece_detection
+python scripts/analyze_chess_board.py --image chess.jpg --segmentation-model path/to/model.pt --piece-model dopaul/chess_piece_detection
 
 # Show only board detection (skip piece detection)
-python examples/analyze_chess_board.py --image chess.jpg --skip-piece-detection
+python scripts/analyze_chess_board.py --image chess.jpg --skip-piece-detection
 
 # Verbose output with all details
-python examples/analyze_chess_board.py --image chess.jpg --verbose
+python scripts/analyze_chess_board.py --image chess.jpg --verbose
 
 # Get square coordinates for specific squares
-python examples/analyze_chess_board.py --image chess.jpg --squares e4,d4,a1,h8
+python scripts/analyze_chess_board.py --image chess.jpg --squares e4,d4,a1,h8
 
 EXAMPLES:
 =========
-python examples/analyze_chess_board.py --image data/eval_images/chess_4.jpeg --verbose --output artifacts/
-python examples/analyze_chess_board.py --image chess.jpg --squares e2,e4 --conf 0.7
-python examples/analyze_chess_board.py --image chess.jpg --skip-piece-detection --output results/board/
+python scripts/analyze_chess_board.py --image data/eval_images/chess_4.jpeg --verbose --output artifacts/
+python scripts/analyze_chess_board.py --image chess.jpg --squares e2,e4 --conf 0.7
+python scripts/analyze_chess_board.py --image chess.jpg --skip-piece-detection --output results/board/
 """
 
 import argparse

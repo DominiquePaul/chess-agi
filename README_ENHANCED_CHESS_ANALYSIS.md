@@ -57,22 +57,22 @@ corners = result['board_corners']    # Board corner coordinates
 
 ```bash
 # Basic analysis with HuggingFace models
-python examples/analyze_chess_board.py --image chess.jpg
+python scripts/analyze_chess_board.py --image chess.jpg
 
 # With custom confidence threshold
-python examples/analyze_chess_board.py --image chess.jpg --conf 0.6
+python scripts/analyze_chess_board.py --image chess.jpg --conf 0.6
 
 # Use specific models
-python examples/analyze_chess_board.py \
+python scripts/analyze_chess_board.py \
     --image chess.jpg \
     --piece-model dopaul/chess_piece_detector \
     --segmentation-model dopaul/chess_board_segmentation
 
 # Verbose output with detailed results
-python examples/analyze_chess_board.py --image chess.jpg --verbose
+python scripts/analyze_chess_board.py --image chess.jpg --verbose
 
 # Get coordinates for specific squares
-python examples/analyze_chess_board.py --image chess.jpg --squares e4,d4,a1,h8
+python scripts/analyze_chess_board.py --image chess.jpg --squares e4,d4,a1,h8
 ```
 
 ### Direct Model Usage

@@ -250,22 +250,22 @@ Analyze chess board images from the command line using the comprehensive analyze
 
 ```bash
 # Basic analysis - detect corners and pieces
-python examples/analyze_chess_board.py --image data/eval_images/chess_4.jpeg
+python scripts/analyze_chess_board.py --image data/eval_images/chess_4.jpeg
 
 # Get pixel coordinates for specific squares (useful for robotics)
-python examples/analyze_chess_board.py --image chess.jpg --squares e4,d4,a1,h8
+python scripts/analyze_chess_board.py --image chess.jpg --squares e4,d4,a1,h8
 
-# Corners-only mode (skip piece detection)
-python examples/analyze_chess_board.py --image chess.jpg --corners-only
+# Skip piece detection mode (board detection only)
+python scripts/analyze_chess_board.py --image chess.jpg --skip-piece-detection
 
 # Verbose output with detailed analysis
-python examples/analyze_chess_board.py --image chess.jpg --verbose --output results/
+python scripts/analyze_chess_board.py --image chess.jpg --verbose --output results/
 
 # JSON output for programmatic use
-python examples/analyze_chess_board.py --image chess.jpg --json
+python scripts/analyze_chess_board.py --image chess.jpg --json
 
 # Custom models and confidence threshold
-python examples/analyze_chess_board.py --image chess.jpg --conf 0.7 --segmentation-model path/to/model.pt
+python scripts/analyze_chess_board.py --image chess.jpg --conf 0.7 --segmentation-model path/to/model.pt
 ```
 
 The CLI provides:
