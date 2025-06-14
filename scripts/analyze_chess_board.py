@@ -7,6 +7,16 @@ USAGE:
 # Basic analysis
 python examples/analyze_chess_board.py --image data/eval_images/chess_4.jpeg
 
+# All options with default values (only --image is required)
+python examples/analyze_chess_board.py --image <path> \
+    --segmentation-model dopaul/chess_board_segmentation \
+    --piece-model dopaul/chess_piece_detection \
+    --corner-method approx \
+    --conf 0.5 \
+    --target-size 512 \
+    --output artifacts \
+    [--no-visualization] [--skip-piece-detection] [--verbose] [--squares <squares>] [--json]
+
 # With custom confidence threshold
 python examples/analyze_chess_board.py --image chess.jpg --conf 0.6
 
@@ -16,8 +26,8 @@ python examples/analyze_chess_board.py --image chess.jpg --output results/
 # Use custom models (local paths or HuggingFace models)
 python examples/analyze_chess_board.py --image chess.jpg --segmentation-model path/to/model.pt --piece-model dopaul/chess_piece_detection
 
-# Show only corners (no piece detection)
-python examples/analyze_chess_board.py --image chess.jpg --corners-only
+# Show only board detection (skip piece detection)
+python examples/analyze_chess_board.py --image chess.jpg --skip-piece-detection
 
 # Verbose output with all details
 python examples/analyze_chess_board.py --image chess.jpg --verbose
@@ -29,7 +39,7 @@ EXAMPLES:
 =========
 python examples/analyze_chess_board.py --image data/eval_images/chess_4.jpeg --verbose --output artifacts/
 python examples/analyze_chess_board.py --image chess.jpg --squares e2,e4 --conf 0.7
-python examples/analyze_chess_board.py --image chess.jpg --corners-only --output results/corners/
+python examples/analyze_chess_board.py --image chess.jpg --skip-piece-detection --output results/board/
 """
 
 import argparse
@@ -40,11 +50,7 @@ import numpy as np
 from dotenv import load_dotenv
 load_dotenv()
 
-# Add the project root to the path so we can import our modules
-sys.path.append(str(Path(__file__).parent.parent))
-
 from src.chess_board_detection.chess_board_analyzer import ChessBoardAnalyzer
-
 
 def parse_args():
     """Parse command line arguments."""
@@ -56,7 +62,7 @@ Examples:
   %(prog)s --image chess.jpg
   %(prog)s --image chess.jpg --conf 0.6 --output results/
   %(prog)s --image chess.jpg --squares e4,d4,a1 --verbose
-  %(prog)s --image chess.jpg --corners-only
+  %(prog)s --image chess.jpg --skip-piece-detection
         """
     )
     
@@ -86,8 +92,8 @@ Examples:
                        help="Output directory for visualizations (default: artifacts)")
     parser.add_argument("--no-visualization", action="store_true",
                        help="Skip creating visualization images")
-    parser.add_argument("--corners-only", action="store_true",
-                       help="Only detect corners, skip piece detection")
+    parser.add_argument("--skip-piece-detection", action="store_true",
+                       help="Skip piece detection, only detect board and grid")
     
     # Information options
     parser.add_argument("--verbose", "-v", action="store_true",
@@ -124,7 +130,7 @@ def print_analysis_results(result, args):
         return
     
     # Piece detection results
-    if not args.corners_only and result['detected_pieces']:
+    if not args.skip_piece_detection and result['detected_pieces']:
         print(f"\n♟️  CHESS PIECES DETECTED: {len(result['detected_pieces'])}")
         if args.verbose:
             from src.chess_board_detection.classical_method import class_dict
@@ -132,7 +138,7 @@ def print_analysis_results(result, args):
             for cell_num, piece_class in result['detected_pieces']:
                 piece_name = class_dict.get(piece_class, f"Unknown({piece_class})")
                 print(f"   Cell {cell_num:2d}: {piece_name}")
-    elif not args.corners_only:
+    elif not args.skip_piece_detection:
         print(f"\n♟️  No chess pieces detected")
     
     # Chess position
@@ -185,7 +191,7 @@ def save_visualizations(result, args, analyzer):
     print(f"      💾 Saved: {corners_path}")
     
     # 2. Create piece detections visualization
-    if not args.corners_only and result['detected_pieces']:
+    if not args.skip_piece_detection and result['detected_pieces']:
         print("   ♟️  Creating piece detections visualization...")
         pieces_vis = analyzer.create_piece_detections_visualization(result)
         pieces_path = output_dir / f"{image_name}_piece_detections.png"
@@ -199,13 +205,13 @@ def save_visualizations(result, args, analyzer):
         print(f"      💾 Saved: {pieces_path}")
     else:
         pieces_vis = None
-        print("      ⚠️  Skipping piece detections (no pieces or corners-only mode)")
+        print("      ⚠️  Skipping piece detections (no pieces or piece detection disabled)")
     
     # 3. Create comprehensive visualization (existing)
     print("   🔍 Creating complete analysis visualization...")
     complete_vis = analyzer.visualize_result(
         result,
-        show_pieces=not args.corners_only,
+        show_pieces=not args.skip_piece_detection,
         show_grid=True,
         show_corners=True
     )
@@ -314,7 +320,7 @@ def save_visualizations(result, args, analyzer):
         axes[0, 2].axis('off')
         
         # Piece detections
-        if visualizations['piece_detections'] is not None and not args.corners_only:
+        if visualizations['piece_detections'] is not None and not args.skip_piece_detection:
             axes[1, 0].imshow(visualizations['piece_detections'])
             axes[1, 0].set_title('Piece Detections')
         else:
@@ -404,7 +410,7 @@ def main():
     try:
         # Initialize analyzer
         print(f"🔧 Initializing analyzer...")
-        piece_model = None if args.corners_only else args.piece_model
+        piece_model = None if args.skip_piece_detection else args.piece_model
         analyzer = ChessBoardAnalyzer(
             segmentation_model=args.segmentation_model,
             piece_detection_model=piece_model,
