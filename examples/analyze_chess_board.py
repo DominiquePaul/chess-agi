@@ -13,8 +13,8 @@ python examples/analyze_chess_board.py --image chess.jpg --conf 0.6
 # Save visualization
 python examples/analyze_chess_board.py --image chess.jpg --output results/
 
-# Use custom models
-python examples/analyze_chess_board.py --image chess.jpg --segmentation-model path/to/model.pt --piece-model path/to/pieces.pt
+# Use custom models (local paths or HuggingFace models)
+python examples/analyze_chess_board.py --image chess.jpg --segmentation-model path/to/model.pt --piece-model dopaul/chess_piece_detection
 
 # Show only corners (no piece detection)
 python examples/analyze_chess_board.py --image chess.jpg --corners-only
@@ -37,6 +37,8 @@ import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
+from dotenv import load_dotenv
+load_dotenv()
 
 # Add the project root to the path so we can import our modules
 sys.path.append(str(Path(__file__).parent.parent))
@@ -67,8 +69,8 @@ Examples:
                        default="dopaul/chess_board_segmentation",
                        help="Segmentation model name or path (default: dopaul/chess_board_segmentation)")
     parser.add_argument("--piece-model", type=str,
-                       default="models/yolo_chess_piece_detector/training_v2/weights/best.pt",
-                       help="Piece detection model path")
+                       default="dopaul/chess_piece_detection",
+                       help="Piece detection model path or HuggingFace model name")
     parser.add_argument("--corner-method", type=str, default="approx",
                        choices=["approx", "extended"],
                        help="Corner extraction method (default: approx)")
@@ -169,30 +171,130 @@ def save_visualizations(result, args, analyzer):
     
     print(f"\n🎨 CREATING VISUALIZATIONS...")
     
-    # Create comprehensive visualization
-    vis_image = analyzer.visualize_result(
+    # 1. Create corners and grid visualization
+    print("   📍 Creating corners and grid visualization...")
+    corners_vis = analyzer.create_corners_and_grid_visualization(result)
+    corners_path = output_dir / f"{image_name}_corners_and_grid.png"
+    plt.figure(figsize=(12, 8))
+    plt.imshow(corners_vis)
+    plt.title('Board Corners and Chess Grid')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(corners_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"      💾 Saved: {corners_path}")
+    
+    # 2. Create piece detections visualization
+    if not args.corners_only and result['detected_pieces']:
+        print("   ♟️  Creating piece detections visualization...")
+        pieces_vis = analyzer.create_piece_detections_visualization(result)
+        pieces_path = output_dir / f"{image_name}_piece_detections.png"
+        plt.figure(figsize=(12, 8))
+        plt.imshow(pieces_vis)
+        plt.title('Chess Piece Detections')
+        plt.axis('off')
+        plt.tight_layout()
+        plt.savefig(pieces_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"      💾 Saved: {pieces_path}")
+    else:
+        pieces_vis = None
+        print("      ⚠️  Skipping piece detections (no pieces or corners-only mode)")
+    
+    # 3. Create comprehensive visualization (existing)
+    print("   🔍 Creating complete analysis visualization...")
+    complete_vis = analyzer.visualize_result(
         result,
         show_pieces=not args.corners_only,
         show_grid=True,
         show_corners=True
     )
-    
-    # Save main visualization
-    main_vis_path = output_dir / f"{image_name}_analysis.png"
+    complete_path = output_dir / f"{image_name}_complete_analysis.png"
     plt.figure(figsize=(12, 8))
-    plt.imshow(vis_image)
-    plt.title(f'Chess Board Analysis: {Path(args.image).name}')
+    plt.imshow(complete_vis)
+    plt.title('Complete Chess Board Analysis')
     plt.axis('off')
     plt.tight_layout()
-    plt.savefig(main_vis_path, dpi=150, bbox_inches='tight')
+    plt.savefig(complete_path, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"   💾 Main analysis saved: {main_vis_path}")
+    print(f"      💾 Saved: {complete_path}")
     
-    # Save individual processing steps if verbose
+    # 4. Create chess diagram PNG
+    if result.get('chess_position'):
+        print("   🎨 Creating chess diagram...")
+        diagram_path = output_dir / f"{image_name}_chess_diagram.png"
+        analyzer.create_chess_diagram_png(result, diagram_path)
+        print(f"      💾 Saved: {diagram_path}")
+    else:
+        print("      ⚠️  Skipping chess diagram (no chess position detected)")
+    
+    # 5. Create combined 2x2 summary visualization
+    print("   📊 Creating analysis summary...")
+    fig, axes = plt.subplots(2, 2, figsize=(16, 16))
+    fig.suptitle(f'Chess Board Analysis Summary: {Path(args.image).name}', fontsize=16)
+    
+    # Top-left: Corners and grid
+    axes[0, 0].imshow(corners_vis)
+    axes[0, 0].set_title('Board Corners & Grid')
+    axes[0, 0].axis('off')
+    
+    # Top-right: Piece detections or message
+    if pieces_vis is not None:
+        axes[0, 1].imshow(pieces_vis)
+        axes[0, 1].set_title('Piece Detections')
+    else:
+        axes[0, 1].text(0.5, 0.5, 'No Piece Detection\n(disabled or no pieces found)', 
+                       ha='center', va='center', transform=axes[0, 1].transAxes, fontsize=12)
+        axes[0, 1].set_title('Piece Detections (None)')
+    axes[0, 1].axis('off')
+    
+    # Bottom-left: Complete analysis
+    axes[1, 0].imshow(complete_vis)
+    axes[1, 0].set_title('Complete Analysis')
+    axes[1, 0].axis('off')
+    
+    # Bottom-right: Chess diagram or info
+    if result.get('chess_position'):
+        # Create chess diagram and display it
+        try:
+            chess_diagram_array = analyzer.create_chess_diagram_png(result, output_dir / f"{image_name}_temp_diagram.png")
+            axes[1, 1].imshow(chess_diagram_array)
+            axes[1, 1].set_title('Chess Diagram')
+            axes[1, 1].axis('off')
+            # Clean up temp file
+            temp_diagram_path = output_dir / f"{image_name}_temp_diagram.png"
+            if temp_diagram_path.exists():
+                temp_diagram_path.unlink()
+        except Exception as e:
+            # Fallback to text if diagram creation fails
+            chess_board = result['chess_position']
+            position_text = f"Chess Position Detected\n\n"
+            position_text += f"Pieces: {len(result['detected_pieces'])}\n"
+            position_text += f"Turn: {'White' if chess_board.turn else 'Black'}\n"
+            position_text += f"Legal moves: {len(list(chess_board.legal_moves))}\n\n"
+            position_text += f"FEN: {chess_board.fen()[:40]}..."  # Truncate long FEN
+            
+            axes[1, 1].text(0.1, 0.9, position_text, transform=axes[1, 1].transAxes, 
+                           fontsize=10, verticalalignment='top', fontfamily='monospace')
+            axes[1, 1].set_title('Chess Position Info')
+            axes[1, 1].axis('off')
+    else:
+        axes[1, 1].text(0.5, 0.5, 'No Chess Position\nDetected', 
+                       ha='center', va='center', transform=axes[1, 1].transAxes, fontsize=12)
+        axes[1, 1].set_title('Chess Position (None)')
+        axes[1, 1].axis('off')
+    
+    plt.tight_layout()
+    summary_path = output_dir / f"{image_name}_analysis_summary.png"
+    plt.savefig(summary_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"      💾 Saved: {summary_path}")
+    
+    # Save legacy verbose output if requested
     if args.verbose:
         visualizations = result['visualizations']
         
-        # Create multi-panel figure
+        # Create multi-panel figure (old format)
         fig, axes = plt.subplots(2, 3, figsize=(18, 12))
         fig.suptitle(f'Chess Board Analysis Steps: {Path(args.image).name}', fontsize=16)
         
@@ -221,28 +323,42 @@ def save_visualizations(result, args, analyzer):
         axes[1, 0].axis('off')
         
         # Final visualization
-        axes[1, 1].imshow(vis_image)
+        axes[1, 1].imshow(complete_vis)
         axes[1, 1].set_title('Complete Analysis')
         axes[1, 1].axis('off')
         
         # Chess position visualization
         if result.get('chess_position'):
-            # Create a simple text representation
-            axes[1, 2].text(0.1, 0.9, f"Chess Position Detected", transform=axes[1, 2].transAxes, fontsize=12, weight='bold')
-            axes[1, 2].text(0.1, 0.8, f"Pieces: {len(result['detected_pieces'])}", transform=axes[1, 2].transAxes)
-            axes[1, 2].text(0.1, 0.7, f"Turn: {'White' if result['chess_position'].turn else 'Black'}", transform=axes[1, 2].transAxes)
-            axes[1, 2].text(0.1, 0.6, f"Legal moves: {len(list(result['chess_position'].legal_moves))}", transform=axes[1, 2].transAxes)
-            axes[1, 2].set_title('Chess Position Info')
+            # Create and display chess diagram
+            try:
+                chess_diagram_array = analyzer.create_chess_diagram_png(result, output_dir / f"{image_name}_temp_verbose_diagram.png")
+                axes[1, 2].imshow(chess_diagram_array)
+                axes[1, 2].set_title('Chess Diagram')
+                axes[1, 2].axis('off')
+                # Clean up temp file
+                temp_verbose_diagram_path = output_dir / f"{image_name}_temp_verbose_diagram.png"
+                if temp_verbose_diagram_path.exists():
+                    temp_verbose_diagram_path.unlink()
+            except Exception as e:
+                # Fallback to text if diagram creation fails
+                axes[1, 2].text(0.1, 0.9, f"Chess Position Detected", transform=axes[1, 2].transAxes, fontsize=12, weight='bold')
+                axes[1, 2].text(0.1, 0.8, f"Pieces: {len(result['detected_pieces'])}", transform=axes[1, 2].transAxes)
+                axes[1, 2].text(0.1, 0.7, f"Turn: {'White' if result['chess_position'].turn else 'Black'}", transform=axes[1, 2].transAxes)
+                axes[1, 2].text(0.1, 0.6, f"Legal moves: {len(list(result['chess_position'].legal_moves))}", transform=axes[1, 2].transAxes)
+                axes[1, 2].set_title('Chess Position Info')
+                axes[1, 2].axis('off')
         else:
             axes[1, 2].text(0.5, 0.5, 'No Chess Position', ha='center', va='center', transform=axes[1, 2].transAxes)
             axes[1, 2].set_title('Chess Position (None)')
-        axes[1, 2].axis('off')
+            axes[1, 2].axis('off')
         
         plt.tight_layout()
-        steps_path = output_dir / f"{image_name}_steps.png"
+        steps_path = output_dir / f"{image_name}_processing_steps.png"
         plt.savefig(steps_path, dpi=150, bbox_inches='tight')
         plt.close()
-        print(f"   💾 Processing steps saved: {steps_path}")
+        print(f"      💾 Processing steps saved: {steps_path}")
+    
+    print(f"\n📁 All visualizations saved to: {output_dir.absolute()}")
 
 
 def output_json(result, args):
@@ -314,7 +430,8 @@ def main():
             
             print(f"\n✅ Analysis completed successfully!")
             if not args.no_visualization:
-                print(f"📁 Results saved to: {Path(args.output).absolute()}")
+                print(f"📁 Generated {4 + (1 if result.get('chess_position') else 0) + (1 if args.verbose else 0)} visualization files")
+                print(f"📁 All results saved to: {Path(args.output).absolute()}")
         
     except Exception as e:
         print(f"❌ Analysis failed: {e}")

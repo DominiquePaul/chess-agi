@@ -1,31 +1,37 @@
 #!/usr/bin/env python3
 """
-HuggingFace Upload CLI for ChessBoard Detection Models
+HuggingFace Upload CLI for Chess AI Models
 
-Upload trained chessboard detection models (corner detection or segmentation) to HuggingFace Model Hub.
+Upload trained chess AI models (board corner detection, board segmentation, or piece detection) to HuggingFace Model Hub.
 
 Usage:
     # Corner Detection Models
-    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name username/chessboard-corner-detector --model-task corner-detection
+    python scripts/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name username/chessboard-corner-detector --model-task corner-detection
     
     # Segmentation Models
-    python src/chess_board_detection/upload_hf.py --model artifacts/models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt --repo-name username/chessboard-segmentation --model-task segmentation
+    python scripts/upload_hf.py --model artifacts/models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt --repo-name username/chessboard-segmentation --model-task segmentation
+    
+    # Piece Detection Models
+    python scripts/upload_hf.py --model models/chess_piece_detection/training_yolo11s/weights/best.pt --repo-name username/chess-piece-detector --model-task detection
     
     # Upload with custom description and tags
-    python src/chess_board_detection/upload_hf.py --model path/to/model.pt --repo-name username/model-name --model-task segmentation --description "My custom model" --tags computer-vision,chess,detection
+    python scripts/upload_hf.py --model path/to/model.pt --repo-name username/model-name --model-task segmentation --description "My custom model" --tags computer-vision,chess,detection
     
     # Upload and make repository private
-    python src/chess_board_detection/upload_hf.py --model path/to/model.pt --repo-name username/my-chess-model --model-task corner-detection --private
+    python scripts/upload_hf.py --model path/to/model.pt --repo-name username/my-chess-model --model-task corner-detection --private
 
 Examples:
     # Corner detection model
-    python src/chess_board_detection/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name myusername/chess-corner-detector --model-task corner-detection
+    python scripts/upload_hf.py --model models/chess_board_detection/corner_detection_training/weights/best.pt --repo-name myusername/chess-corner-detector --model-task corner-detection
     
     # Segmentation model
-    python src/chess_board_detection/upload_hf.py --model artifacts/models/chess_board_segmentation/training/weights/best.pt --repo-name myusername/chess-segmentation --model-task segmentation
+    python scripts/upload_hf.py --model artifacts/models/chess_board_segmentation/training/weights/best.pt --repo-name myusername/chess-segmentation --model-task segmentation
+    
+    # Piece detection model
+    python scripts/upload_hf.py --model models/chess_piece_detection/training_yolo11s/weights/best.pt --repo-name myusername/chess-piece-detector --model-task detection
     
     # Complete upload with metadata
-    python src/chess_board_detection/upload_hf.py \
+    python scripts/upload_hf.py \
         --model artifacts/models/chess_board_segmentation/training/weights/best.pt \
         --repo-name myusername/chess-segmentation \
         --model-task segmentation \
@@ -74,8 +80,8 @@ def parse_args():
         "--model-task", 
         type=str, 
         required=True,
-        choices=["corner-detection", "segmentation"],
-        help="Type of model task: 'corner-detection' for corner detection models, 'segmentation' for segmentation models"
+        choices=["corner-detection", "segmentation", "detection"],
+        help="Type of model task: 'corner-detection' for corner detection models, 'segmentation' for segmentation models, 'detection' for chess piece detection models"
     )
     
     # ========================================
@@ -174,6 +180,13 @@ def set_task_defaults(args):
             args.tags = "computer-vision,chess,yolo,segmentation,instance-segmentation"
         if args.task is None:
             args.task = "instance-segmentation"
+    elif args.model_task == "detection":
+        if args.description is None:
+            args.description = "Chess piece detection model trained with YOLO"
+        if args.tags is None:
+            args.tags = "computer-vision,chess,yolo,object-detection,piece-detection"
+        if args.task is None:
+            args.task = "object-detection"
     
     # Note: dataset_name is left as None by default since we need a valid HF dataset ID
 
@@ -188,6 +201,8 @@ def validate_args(args) -> bool:
             print("   python src/chess_board_detection/train.py")
         elif args.model_task == "segmentation":
             print("   python src/chess_board_detection/yolo/segmentation/train_segmentation.py")
+        elif args.model_task == "detection":
+            print("   python src/chess_piece_detection/train.py")
         return False
     
     # Validate repository name format
@@ -261,6 +276,11 @@ def load_model_for_upload(model_path: Path, model_task: str, verbose: bool = Fal
             if verbose:
                 print(f"🔄 Loading segmentation model from: {model_path}")
             model = ChessBoardSegmentationModel(model_path=model_path)
+        elif model_task == "detection":
+            from src.chess_piece_detection.model import ChessModel
+            if verbose:
+                print(f"🔄 Loading piece detection model from: {model_path}")
+            model = ChessModel(model_path=model_path)
         else:
             raise ValueError(f"Unknown model task: {model_task}")
         
@@ -455,6 +475,79 @@ python src/chess_board_detection/yolo/segmentation/train_segmentation.py \\
 ```
 """
     
+    elif args.model_task == "detection":
+        model_card += """### Loading the Model
+
+```python
+from src.chess_piece_detection.model import ChessModel
+
+# Load the model
+model = ChessModel(model_path="path/to/downloaded/model.pt")
+
+# Detect chess pieces in an image
+detected_pieces = model.detect_pieces("path/to/chessboard_image.jpg")
+
+for square_num, piece_class in detected_pieces:
+    piece_name = model.get_piece_name(piece_class)
+    print(f"Square {square_num}: {piece_name}")
+
+# Visualize results
+model.visualize_detections("path/to/chessboard_image.jpg", show=True)
+```
+
+### Direct YOLO Usage
+
+```python
+from ultralytics import YOLO
+
+# Load the model
+model = YOLO("path/to/downloaded/model.pt")
+
+# Run detection on chess piece images
+results = model("path/to/chessboard_image.jpg")
+
+# Get bounding boxes and classifications
+for result in results:
+    boxes = result.boxes
+    if boxes is not None:
+        for box in boxes:
+            class_id = int(box.cls[0])
+            confidence = float(box.conf[0])
+            print(f"Detected piece class {class_id} with confidence {confidence:.2f}")
+```
+
+### Training Data Format
+
+This model expects YOLO detection format with chess piece annotations:
+
+```yaml
+# data.yaml
+train: path/to/train/images
+val: path/to/val/images
+nc: 12  # Number of chess piece classes
+names: ['white-king', 'white-queen', 'white-rook', 'white-bishop', 'white-knight', 'white-pawn', 
+        'black-king', 'black-queen', 'black-rook', 'black-bishop', 'black-knight', 'black-pawn']
+```
+
+With corresponding label files containing piece bounding boxes:
+```
+# labels/image.txt
+class_id x_center y_center width height  # normalized coordinates
+```
+
+## Training
+
+This model was trained using the Chess Piece Detection training pipeline:
+
+```bash
+python src/chess_piece_detection/train.py \\
+    --data data/chess_pieces/data.yaml \\
+    --epochs 100 \\
+    --batch 16 \\
+    --img-size 640
+```
+"""
+    
     # Common footer
     model_card += f"""
 ## Model Performance
@@ -624,7 +717,12 @@ def main():
         if not args.dry_run:
             print(f"\n🎯 Next steps:")
             print(f"1. Test your uploaded model:")
-            print(f"   python src/chess_board_detection/test_model.py --model {args.repo_name} --image path/to/image.jpg")
+            if args.model_task == "corner-detection":
+                print(f"   python src/chess_board_detection/test_model.py --model {args.repo_name} --image path/to/image.jpg")
+            elif args.model_task == "segmentation":
+                print(f"   python src/chess_board_detection/yolo/segmentation/test_segmentation.py --model {args.repo_name} --image path/to/image.jpg")
+            elif args.model_task == "detection":
+                print(f"   python src/chess_piece_detection/test_model.py --model {args.repo_name} --image path/to/image.jpg")
             print(f"2. Update model card with performance metrics")
             print(f"3. Add example images to the repository")
     else:

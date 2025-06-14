@@ -51,6 +51,7 @@ The detailed guide covers:
 
 - **Hugging Face Profile**: https://huggingface.co/dopaul
 - **Trained Models**:
+  - [Chess Piece Detection](https://huggingface.co/dopaul/chess_piece_detection) - YOLO detection model for identifying and classifying chess pieces
   - [Chess Board Segmentation](https://huggingface.co/dopaul/chess_board_segmentation) - YOLO segmentation model for precise board boundary detection
 - **Chess Datasets**:
   - [Merged Dataset (Recommended)](https://huggingface.co/datasets/dopaul/chess-pieces-merged) - Combined dataset for training
@@ -113,7 +114,7 @@ python src/chess_piece_detection/train.py \
     --mixup 0.1 \
     --optimizer AdamW \
     --eval-individual \
-    --push-to-hf \
+    --hf-repo-id "username/chess-piece-detector" \
     --verbose
 
 # View all training options
@@ -128,6 +129,12 @@ python src/chess_piece_detection/train.py --help
 
 # Run inference example
 python -m src.chess_piece_detection.inference_example
+
+# Upload your trained model to Hugging Face Hub
+python scripts/upload_hf.py \
+    --model models/chess_piece_detection/training_v3/weights/best.pt \
+    --repo-name yourusername/chess-piece-detector \
+    --model-task detection
 ```
 
 #### Chessboard Detection (Corner Detection)
@@ -147,8 +154,7 @@ python src/chess_board_detection/yolo/train.py \
     --data data/chessboard_corners/chess-board-box-3/data.yaml \
     --epochs 100 \
     --batch 32 \
-    --upload-hf \
-    --hf-model-name username/chessboard-detector
+    --hf-repo-id username/chessboard-detector
 
 # View all training options
 python src/chess_board_detection/train.py --help
@@ -193,26 +199,32 @@ python src/chess_board_detection/yolo/segmentation/test_segmentation.py \
 
 #### Upload Models to Hugging Face
 
-Once you've trained your models, you can easily upload them to Hugging Face Hub for sharing and deployment.
+Once you've trained your models, you can easily upload them to Hugging Face Hub for sharing and deployment using our unified upload script that supports all three model types (piece detection, corner detection, and segmentation).
 
 ```bash
 # First, login to Hugging Face
 huggingface-cli login
 
+# Upload piece detection model
+python scripts/upload_hf.py \
+    --model models/chess_piece_detection/training_yolo11s/weights/best.pt \
+    --repo-name yourusername/chess-piece-detector \
+    --model-task detection
+
 # Upload corner detection model
-python src/chess_board_detection/upload_hf.py \
+python scripts/upload_hf.py \
     --model models/chess_board_detection/corner_detection_training/weights/best.pt \
     --repo-name yourusername/chess-corner-detector \
     --model-task corner-detection
 
 # Upload segmentation model
-python src/chess_board_detection/upload_hf.py \
+python scripts/upload_hf.py \
     --model artifacts/models/chess_board_segmentation/polygon_segmentation_training/weights/best.pt \
     --repo-name yourusername/chess-segmentation \
     --model-task segmentation
 
 # Upload with custom metadata and training logs
-python src/chess_board_detection/upload_hf.py \
+python scripts/upload_hf.py \
     --model artifacts/models/chess_board_segmentation/training/weights/best.pt \
     --repo-name yourusername/chess-board-segmentation \
     --model-task segmentation \
@@ -223,10 +235,10 @@ python src/chess_board_detection/upload_hf.py \
     --verbose
 
 # Test upload without actually uploading
-python src/chess_board_detection/upload_hf.py \
+python scripts/upload_hf.py \
     --model path/to/model.pt \
     --repo-name yourusername/model-name \
-    --model-task segmentation \
+    --model-task detection \
     --dry-run
 ```
 
@@ -268,7 +280,9 @@ The CLI provides:
 from src.chess_piece_detection.model import ChessModel
 
 # Load model from Hugging Face
-model = ChessModel.from_huggingface("username/chess-piece-detector")
+model = ChessModel("dopaul/chess_piece_detection")  # Official model
+# OR
+model = ChessModel("username/chess-piece-detector")  # Your custom model
 
 # Or create new model with pretrained checkpoint (for training/transfer learning)
 model = ChessModel(pretrained_checkpoint="yolo11s.pt")  # Uses YOLO11s by default

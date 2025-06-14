@@ -269,13 +269,19 @@ class BaseYOLOModel:
             
             # Initialize W&B run
             try:
+                # Get API key from environment if available
+                import os
+                wandb_api_key = os.environ.get("WANDB_API_KEY")
+                
                 wandb_run = wandb.init(
                     project=wandb_project or "chess-piece-detection",
                     name=wandb_name or name or "yolo-training",
                     config=wandb_config,
                     tags=wandb_tags or ["chess", "yolo", "object-detection"],
                     notes=wandb_notes,
-                    reinit=True
+                    reinit=True,
+                    # Pass API key if available in environment
+                    **({"api_key": wandb_api_key} if wandb_api_key else {})
                 )
                 
                 # Add W&B callback to model

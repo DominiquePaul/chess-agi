@@ -25,12 +25,12 @@ from src.base_model import BaseYOLOModel
 class ChessBoardSegmentationModel(BaseYOLOModel):
     """Model for segmenting chessboard polygons using YOLOv8 segmentation."""
     
-    def __init__(self, model_path: Path | None = None, device: torch.device | None = None, pretrained_model: str = "yolov8n-seg.pt"):
+    def __init__(self, model_path: Path | str | None = None, device: torch.device | None = None, pretrained_model: str = "yolov8n-seg.pt"):
         """
         Initialize ChessBoard Segmentation Model.
         
         Args:
-            model_path: Path to trained model weights. If None, loads pretrained YOLOv8 segmentation model
+            model_path: Path to trained model weights, HuggingFace model name, or None
             device: Device to run model on. If None, auto-detects
             pretrained_model: Pretrained model to use when model_path is None. Options:
                 - 'yolov8n-seg.pt' (nano, fastest, least accurate)
@@ -39,6 +39,11 @@ class ChessBoardSegmentationModel(BaseYOLOModel):
                 - 'yolov8l-seg.pt' (large)
                 - 'yolov8x-seg.pt' (extra large, slowest, most accurate)
         """
+        # Handle HuggingFace Hub models
+        if isinstance(model_path, str) and "/" in model_path and not Path(model_path).exists():
+            # This looks like a HuggingFace model name
+            model_path = self._load_from_huggingface(model_path)
+        
         # Initialize with segmentation model instead of detection
         if model_path is None:
             # Load pretrained YOLOv8 segmentation model (COCO pretrained)
@@ -60,6 +65,39 @@ class ChessBoardSegmentationModel(BaseYOLOModel):
             
         self.model.to(self.device)
         print(f"🎯 ChessBoard Segmentation Model initialized on {self.device}")
+
+    def _load_from_huggingface(self, model_name: str) -> Path:
+        """
+        Load model from HuggingFace Hub.
+        
+        Args:
+            model_name: HuggingFace model name (e.g., "dopaul/chess_board_segmentation")
+            
+        Returns:
+            Path to downloaded model
+        """
+        try:
+            from huggingface_hub import hf_hub_download
+            print(f"🤗 Loading segmentation model from HuggingFace Hub: {model_name}")
+            
+            # Download the model file
+            # Models on HuggingFace Hub are uploaded as "model.pt"
+            model_file = hf_hub_download(
+                repo_id=model_name,
+                filename="model.pt",
+                cache_dir="models/huggingface_cache"
+            )
+            
+            print(f"✅ Segmentation model downloaded successfully: {model_file}")
+            return Path(model_file)
+            
+        except ImportError:
+            raise ImportError(
+                "huggingface_hub is required to load models from HuggingFace Hub. "
+                "Install it with: pip install huggingface_hub"
+            )
+        except Exception as e:
+            raise Exception(f"Failed to load segmentation model from HuggingFace Hub: {e}")
 
     def predict_segments(self, img_path, conf=0.25, iou=0.7, max_segments=1):
         """

@@ -47,7 +47,7 @@ Usage:
         --wandb-tags chess yolo object-detection \
         --wandb-notes "Training chess piece detector with YOLO11s"
     
-    # Complete example with all options
+    # Complete example with all options (including HF upload)
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
         --pretrained-model yolo11m.pt \
@@ -69,6 +69,7 @@ Usage:
         --wandb-project "chess-piece-detection" \
         --wandb-name "yolo11m-v3" \
         --wandb-tags chess yolo training augmentation \
+        --hf-repo-id "username/chess-piece-detector" \
         --verbose
         
     # Disable W&B tracking explicitly
@@ -194,7 +195,7 @@ def parse_args():
     parser.add_argument(
         "--lrf", 
         type=float, 
-        default=0.01,
+        default=0.1,
         help="Final learning rate (lr * lrf)"
     )
     parser.add_argument(
@@ -336,15 +337,10 @@ def parse_args():
         help="Evaluate on individual datasets (dominique, roboflow) if available"
     )
     parser.add_argument(
-        "--push-to-hf", 
-        action="store_true",
-        help="Push trained model to Hugging Face Hub"
-    )
-    parser.add_argument(
         "--hf-repo-id", 
         type=str, 
-        default="chess-piece-detector",
-        help="Hugging Face repository ID for model upload"
+        default=None,
+        help="Hugging Face repository ID for model upload (e.g., 'username/chess-piece-detector'). If specified, model will be automatically pushed to HF Hub after training."
     )
     parser.add_argument(
         "--no-plots", 
@@ -732,7 +728,7 @@ def main():
             # ========================================  
             # Optional: Push to Hugging Face
             # ========================================
-            if args.push_to_hf:
+            if args.hf_repo_id:
                 print(f"🤗 Pushing model to Hugging Face Hub: {args.hf_repo_id}")
                 try:
                     trained_model.push_to_huggingface(
@@ -788,7 +784,7 @@ def main():
     print("\n💡 More CLI options:")
     print("   • Add --help to see all available parameters")
     print("   • Use --eval-individual to test on separate datasets")
-    print("   • Use --push-to-hf to upload model to Hugging Face")
+    print("   • Use --hf-repo-id username/model-name to upload model to Hugging Face")
     print("   • Adjust augmentation parameters for better generalization")
     print("=" * 70)
 
