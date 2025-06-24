@@ -13,6 +13,12 @@ python scripts/analyze_chess_board.py --image chess.jpg --conf 0.6 --output resu
 # With 20% expansion from center
 python scripts/analyze_chess_board.py --image chess.jpg --threshold 20
 
+# Camera positioned with white at top (180° rotated board)
+python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from t
+
+# Camera positioned from side perspective (white at left)
+python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from l
+
 # Overwrite existing files in output directory
 python scripts/analyze_chess_board.py --image chess.jpg --overwrite
 """
@@ -83,6 +89,14 @@ def parse_args():
         help="Percentage expansion of chess board from center (0-100, default: 0)",
     )
     parser.add_argument(
+        "--white-playing-from",
+        "-p",
+        type=str,
+        default="b",
+        choices=["b", "t", "l", "r"],
+        help="Camera perspective - side where white is playing from: 'b' (bottom), 't' (top), 'l' (left), 'r' (right) (default: b)",
+    )
+    parser.add_argument(
         "--use-weighted-center",
         action="store_true",
         default=True,
@@ -137,8 +151,12 @@ def print_analysis_results(chess_analysis, args):
 
     # Basic information
     metadata = chess_analysis.metadata
+    perspective_names = {"b": "bottom", "t": "top", "l": "left", "r": "right"}
     print(f"📏 Original image size: {metadata.original_dimensions[0]}x{metadata.original_dimensions[1]}")
     print(f"🎯 Segmentation method: {metadata.segmentation_method}")
+    print(
+        f"📐 Camera perspective: white playing from {perspective_names[metadata.white_playing_from]} ({metadata.white_playing_from})"
+    )
     print(f"🎲 Confidence threshold: {metadata.confidence_threshold}")
 
     # Corner detection results
@@ -296,6 +314,7 @@ def main():
             piece_detection_model=piece_model,
             corner_method=args.corner_method,
             threshold=args.threshold,
+            white_playing_from=args.white_playing_from,
         )
 
         # Analyze the image

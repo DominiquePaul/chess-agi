@@ -76,6 +76,7 @@ class ChessBoardAnalyzer:
         corner_method: str = "approx",
         create_visualizations: bool = True,
         threshold: int = 0,
+        white_playing_from: str = "b",
     ):
         """
         Initialize the chess board analyzer.
@@ -86,12 +87,23 @@ class ChessBoardAnalyzer:
             corner_method: Method for corner extraction ('approx', 'extended', etc.)
             create_visualizations: Whether to create visualization images
             threshold: Percentage expansion of chess board from center (0-100, default: 0)
+            white_playing_from: Side where white is playing from - "b" (bottom), "t" (top), "l" (left), "r" (right) (default: "b")
         """
         self.segmentation_model_name = segmentation_model
         self.piece_detection_model_name = piece_detection_model
         self.corner_method = corner_method
         self.create_visualizations = create_visualizations
         self.threshold = threshold
+        self.white_playing_from = white_playing_from
+
+        # Validate white_playing_from parameter
+        if white_playing_from not in ["b", "t", "l", "r"]:
+            raise ValueError(
+                f"Invalid white_playing_from: {white_playing_from}. Must be one of: 'b' (bottom), 't' (top), 'l' (left), 'r' (right)"
+            )
+
+        perspective_names = {"b": "bottom", "t": "top", "l": "left", "r": "right"}
+        print(f"🎯 White playing from: {perspective_names[white_playing_from]} ({white_playing_from})")
 
         # Initialize segmentation model
         try:
@@ -172,11 +184,24 @@ class ChessBoardAnalyzer:
             print("⚠️  Skipping piece detection - model not available")
             chess_pieces = []
 
-            # Create chess board
+        # Transform chess squares to standard notation if needed
+        if self.white_playing_from != "b":
+            print(f"🔄 Transforming squares from {self.white_playing_from} perspective to standard notation")
+            transformed_squares = {}
+
+            for camera_square_num, square_data in chess_squares.items():
+                # Transform the square number to standard notation
+                standard_square_num = self._transform_square_number_to_standard(camera_square_num)
+                transformed_squares[standard_square_num] = square_data
+
+            chess_squares = transformed_squares
+
+        # Create chess board (squares are now in standard notation)
         chess_board = ChessBoard(
             board_corners=board_corners,
             chess_squares=chess_squares,
             chess_pieces=chess_pieces,
+            white_playing_from=self.white_playing_from,
         )
 
         # Step 6: Create comprehensive result
@@ -189,6 +214,7 @@ class ChessBoardAnalyzer:
                 piece_detection_model=self.piece_detection_model_name or None,
                 piece_detection_available=self.piece_model is not None,
                 confidence_threshold=conf_threshold,
+                white_playing_from=self.white_playing_from,
             ),
             chess_board=chess_board,
             visualisations=None,
@@ -300,6 +326,9 @@ class ChessBoardAnalyzer:
         """
         Generate coordinates for all chess squares in the original image.
 
+        Always generates squares in standard order (1-64 from bottom-left to top-right)
+        regardless of camera perspective. Perspective transformation is handled during FEN conversion.
+
         Returns:
             dictionary mapping square numbers to coordinates
         """
@@ -315,6 +344,9 @@ class ChessBoardAnalyzer:
         # Generate square coordinates in warped space
         squares_data_warped = []
 
+        print(f"🔄 Generating squares (standard order) for perspective: {self.white_playing_from}")
+
+        # Always generate squares in standard order (bottom-left to top-right)
         # Iterate from bottom to top (chess notation order) and left to right
         for i in range(rows - 1, -1, -1):
             for j in range(cols):
@@ -538,31 +570,77 @@ class ChessBoardAnalyzer:
 
         return None
 
+    # Perspective transformation utility methods
+    def _transform_square_number_to_standard(self, camera_square_num: int) -> int:
+        """
+        Transform a square number from camera perspective to standard chess notation (white's perspective).
 
-if __name__ == "__main__":
-    # Example usage
-    print("Chess Board Analyzer - Example Usage")
+        Args:
+            camera_square_num: Square number from camera perspective (1-64)
 
-    # Test with default model
-    try:
-        analyzer = ChessBoardAnalyzer()
+        Returns:
+            Square number in standard chess notation
+        """
+        if not (1 <= camera_square_num <= 64):
+            raise ValueError(f"Square number must be between 1 and 64, got {camera_square_num}")
 
-        # Test image path
-        test_image = Path("data/eval_images/chess_4.jpeg")
-        if test_image.exists():
-            print(f"\n🔍 Analyzing test image: {test_image}")
-            result = analyzer.analyze_board(test_image)
+        # Convert to 0-based indexing for easier math
+        camera_idx = camera_square_num - 1
+        camera_row = camera_idx // 8
+        camera_col = camera_idx % 8
 
-            print("✅ Analysis completed!")
-            print(f"📍 Board corners detected: {bool(result.chess_board.chess_squares)}")
-            print(f"♟️  Pieces detected: {len(result.chess_board.chess_pieces)}")
-
-            # Show some example results
-            if result.chess_board.chess_squares:
-                print(f"📍 Total squares detected: {len(result.chess_board.chess_squares)}")
-                print(f"♟️  Chess position: {result.chess_board.position_string}")
+        # Transform based on white's position
+        if self.white_playing_from == "b":  # Bottom (standard perspective) - no transformation needed
+            standard_row = camera_row
+            standard_col = camera_col
+        elif self.white_playing_from == "t":  # Top (rotated 180°)
+            standard_row = 7 - camera_row
+            standard_col = 7 - camera_col
+        elif self.white_playing_from == "l":  # Left (rotated 90° clockwise)
+            standard_row = camera_col
+            standard_col = 7 - camera_row
+        elif self.white_playing_from == "r":  # Right (rotated 90° counter-clockwise)
+            standard_row = 7 - camera_col
+            standard_col = camera_row
         else:
-            print(f"⚠️  Test image not found: {test_image}")
+            raise ValueError(f"Invalid white_playing_from: {self.white_playing_from}")
 
-    except Exception as e:
-        print(f"❌ Example failed: {e}")
+        # Convert back to 1-based square number
+        return standard_row * 8 + standard_col + 1
+
+    def _transform_square_number_to_camera(self, standard_square_num: int) -> int:
+        """
+        Transform a square number from standard chess notation to camera perspective.
+
+        Args:
+            standard_square_num: Square number in standard chess notation (1-64)
+
+        Returns:
+            Square number in camera perspective
+        """
+        if not (1 <= standard_square_num <= 64):
+            raise ValueError(f"Square number must be between 1 and 64, got {standard_square_num}")
+
+        # Convert to 0-based indexing for easier math
+        standard_idx = standard_square_num - 1
+        standard_row = standard_idx // 8
+        standard_col = standard_idx % 8
+
+        # Transform based on white's position
+        if self.white_playing_from == "b":  # Bottom (standard perspective) - no transformation needed
+            camera_row = standard_row
+            camera_col = standard_col
+        elif self.white_playing_from == "t":  # Top (rotated 180°)
+            camera_row = 7 - standard_row
+            camera_col = 7 - standard_col
+        elif self.white_playing_from == "l":  # Left (rotated 90° counter-clockwise from standard)
+            camera_row = 7 - standard_col
+            camera_col = standard_row
+        elif self.white_playing_from == "r":  # Right (rotated 90° clockwise from standard)
+            camera_row = standard_col
+            camera_col = 7 - standard_row
+        else:
+            raise ValueError(f"Invalid white_playing_from: {self.white_playing_from}")
+
+        # Convert back to 1-based square number
+        return camera_row * 8 + camera_col + 1

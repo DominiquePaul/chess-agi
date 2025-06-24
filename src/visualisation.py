@@ -37,7 +37,7 @@ def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis) -> np.n
             (board_corners[2].x, board_corners[2].y),
             (board_corners[3].x, board_corners[3].y),
         ]
-        corner_labels = ["TL", "TR", "BL", "BR"]
+        corner_labels = ["TL", "TR", "BR", "BL"]
 
         for point, label in zip(corner_points, corner_labels, strict=False):
             if point is not None:
@@ -70,11 +70,9 @@ def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis) -> np.n
 
         cv2.polylines(vis_image, [points], True, (0, 255, 0), 2)
 
-        # Convert square number to chess notation (a1, b2, etc.)
+        # Display square number
         if 1 <= square_num <= 64:
-            file = chr(ord("a") + ((square_num - 1) % 8))  # a-h
-            rank = str(8 - ((square_num - 1) // 8))  # 1-8
-            square_label = f"{file}{rank}"
+            square_label = str(square_num)
 
             center_x, center_y = int(square.center.x), int(square.center.y)
             cv2.putText(
@@ -202,11 +200,9 @@ def create_piece_centers_visualization(chess_analysis: ChessAnalysis, use_weight
 
         cv2.polylines(vis_image, [points], True, (0, 255, 0), 2)
 
-        # Convert square number to chess notation (a1, b2, etc.)
+        # Display square number
         if 1 <= square_num <= 64:
-            file = chr(ord("a") + ((square_num - 1) % 8))  # a-h
-            rank = str(8 - ((square_num - 1) // 8))  # 1-8
-            square_label = f"{file}{rank}"
+            square_label = str(square_num)
 
             center_x, center_y = int(square.center.x), int(square.center.y)
             cv2.putText(

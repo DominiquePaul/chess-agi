@@ -13,6 +13,7 @@ class Metadata:
     piece_detection_model: str | None
     piece_detection_available: bool
     confidence_threshold: float
+    white_playing_from: str
 
 
 @dataclass
@@ -65,6 +66,7 @@ class ChessBoard:
     board_corners: list[Point] | None
     chess_squares: dict[int, ChessBoardSquare]
     chess_pieces: list[ChessPieceBoundingBox]
+    white_playing_from: str = "b"
     position_string: str = "Invalid position"
     board_position: chess.Board | None = None
 
@@ -92,18 +94,19 @@ class ChessBoard:
                 "black-king": (chess.KING, chess.BLACK),
             }
 
-            # Place pieces on board
+            # Place pieces on board - assumes squares are already in standard chess notation
+            # Perspective transformation should be handled by ChessBoardAnalyzer before creating ChessBoard
             for square_num, cs in self.chess_squares.items():
                 piece_name = cs.piece_name
 
                 if piece_name in piece_type_mapping:
                     piece_type, color = piece_type_mapping[piece_name]
 
-                    # Convert square number to chess square
-                    # Square numbers are 1-64, starting from bottom-left
-                    # Convert to file (a-h) and rank (1-8)
-                    file = (square_num - 1) % 8  # 0-7 for a-h
-                    rank = 7 - ((square_num - 1) // 8)  # 0-7 for ranks 1-8 (inverted)
+                    # Convert square number to chess square (assumes standard notation)
+                    # Square numbers are 1-64, starting from bottom-left (a1=1, h8=64)
+                    square_idx = square_num - 1
+                    file = square_idx % 8  # 0-7 for a-h
+                    rank = 7 - (square_idx // 8)  # 0-7 for ranks 1-8 (inverted)
 
                     chess_square = chess.square(file, rank)
                     board.set_piece_at(chess_square, chess.Piece(piece_type, color))
