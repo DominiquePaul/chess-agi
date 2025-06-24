@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 
 import cv2
@@ -431,3 +432,106 @@ def create_chess_diagram_png(chess_analysis: ChessAnalysis, output_path: Path) -
     plt.close(fig)
 
     return img_array
+
+
+def create_combined_visualization(
+    chess_analysis: ChessAnalysis,
+    output_dir: Path,
+    image_name: str,
+    skip_piece_detection: bool = False,
+    use_weighted_center: bool = True,
+) -> None:
+    """
+    Create a combined visualization with all plots as subplots.
+
+    Args:
+        chess_analysis: ChessAnalysis dataclass containing all analysis results
+        output_dir: Directory to save the combined visualization
+        image_name: Base name for the output file
+        skip_piece_detection: Whether piece detection was skipped
+        use_weighted_center: Whether to use weighted center coordinates for piece mapping
+    """
+    try:
+        # Prepare the subplot data
+        plots_data = []
+        titles = []
+
+        # 1. Corners and grid visualization
+        corners_vis = create_corners_and_grid_visualization(chess_analysis)
+        plots_data.append(corners_vis)
+        titles.append("Board Corners and Chess Grid")
+
+        # 2. Piece bounding boxes visualization (if pieces detected and not skipped)
+        if not skip_piece_detection and chess_analysis.chess_board.chess_pieces:
+            pieces_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis)
+            plots_data.append(pieces_boxes_vis)
+            titles.append("Chess Piece Bounding Boxes")
+
+            # 3. Piece centers visualization
+            coordinate_method = "weighted_center" if use_weighted_center else "geometric_center"
+            pieces_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center)
+            plots_data.append(pieces_centers_vis)
+            titles.append(f"Chess Piece Centers ({coordinate_method.replace('_', ' ').title()})")
+
+        # 4. Chess diagram (if chess position exists)
+        chess_position = chess_analysis.chess_board.board_position
+        if chess_position:
+            # Use the existing create_chess_diagram_png function
+            try:
+                # Create a temporary file for the chess diagram
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
+                    temp_path = Path(temp_file.name)
+
+                # Generate the chess diagram using the existing function
+                chess_diagram_array = create_chess_diagram_png(chess_analysis, temp_path)
+
+                # Clean up the temporary file
+                temp_path.unlink(missing_ok=True)
+
+                plots_data.append(chess_diagram_array)
+                titles.append("Chess Position Diagram")
+
+            except Exception as e:
+                print(f"      ⚠️  Could not include chess diagram in combined plot: {e}")
+
+        # Determine subplot layout
+        n_plots = len(plots_data)
+        if n_plots == 1:
+            rows, cols = 1, 1
+        elif n_plots == 2:
+            rows, cols = 1, 2
+        elif n_plots == 3:
+            rows, cols = 2, 2  # 2x2 with one empty
+        else:  # n_plots == 4
+            rows, cols = 2, 2
+
+        # Create the combined plot
+        fig, axes = plt.subplots(rows, cols, figsize=(16, 12))
+
+        # Handle case where axes is not a 2D array
+        if n_plots == 1:
+            axes = [axes]
+        elif rows == 1:
+            axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+        else:
+            axes = axes.flatten()
+
+        # Plot each visualization
+        for i, (plot_data, title) in enumerate(zip(plots_data, titles, strict=False)):
+            axes[i].imshow(plot_data)
+            axes[i].set_title(title, fontsize=12, fontweight="bold")
+            axes[i].axis("off")
+
+        # Hide unused subplots
+        for i in range(n_plots, len(axes)):
+            axes[i].axis("off")
+
+        # Adjust layout and save
+        plt.tight_layout()
+        combined_path = output_dir / f"{image_name}_combined_analysis.png"
+        plt.savefig(combined_path, dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"      💾 Saved: {combined_path}")
+
+    except Exception as e:
+        print(f"      ⚠️  Failed to create combined visualization: {e}")

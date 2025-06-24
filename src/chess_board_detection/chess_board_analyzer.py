@@ -75,6 +75,7 @@ class ChessBoardAnalyzer:
         piece_detection_model: str | None = "dopaul/chess_piece_detection",
         corner_method: str = "approx",
         create_visualizations: bool = True,
+        threshold: int = 0,
     ):
         """
         Initialize the chess board analyzer.
@@ -83,11 +84,14 @@ class ChessBoardAnalyzer:
             segmentation_model: HuggingFace model name or local path for board segmentation
             piece_detection_model: HuggingFace model name or local path for piece detection
             corner_method: Method for corner extraction ('approx', 'extended', etc.)
+            create_visualizations: Whether to create visualization images
+            threshold: Percentage expansion of chess board from center (0-100, default: 0)
         """
         self.segmentation_model_name = segmentation_model
         self.piece_detection_model_name = piece_detection_model
         self.corner_method = corner_method
         self.create_visualizations = create_visualizations
+        self.threshold = threshold
 
         # Initialize segmentation model
         try:
@@ -145,7 +149,7 @@ class ChessBoardAnalyzer:
 
         # Apply perspective transformation
         transform_matrix, warped_image = apply_perspective_transformation(
-            original_image, top_left, top_right, bottom_left, bottom_right, threshold=0
+            original_image, top_left, top_right, bottom_left, bottom_right, threshold=self.threshold
         )
 
         # Step 4: Generate square coordinates

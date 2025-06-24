@@ -9,6 +9,12 @@ python scripts/analyze_chess_board.py --image data/eval_images/chess_4.jpeg
 
 # With options
 python scripts/analyze_chess_board.py --image chess.jpg --conf 0.6 --output results/
+
+# With 20% expansion from center
+python scripts/analyze_chess_board.py --image chess.jpg --threshold 20
+
+# Overwrite existing files in output directory
+python scripts/analyze_chess_board.py --image chess.jpg --overwrite
 """
 
 import argparse
@@ -21,6 +27,7 @@ from dotenv import load_dotenv
 from src.chess_board_detection.chess_board_analyzer import ChessBoardAnalyzer
 from src.visualisation import (
     create_chess_diagram_png,
+    create_combined_visualization,
     create_corners_and_grid_visualization,
     create_piece_bounding_boxes_visualization,
     create_piece_centers_visualization,
@@ -69,6 +76,13 @@ def parse_args():
         help="Confidence threshold for piece detection (default: 0.5)",
     )
     parser.add_argument(
+        "--threshold",
+        "-t",
+        type=int,
+        default=0,
+        help="Percentage expansion of chess board from center (0-100, default: 0)",
+    )
+    parser.add_argument(
         "--use-weighted-center",
         action="store_true",
         default=True,
@@ -105,6 +119,11 @@ def parse_args():
         "-v",
         action="store_true",
         help="Show detailed analysis information",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing files in output directory",
     )
 
     return parser.parse_args()
@@ -161,10 +180,27 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
     if args.no_visualization:
         return
 
-    output_dir = Path(args.output)
+    # Create subfolder named after the input file/folder
+    input_path = Path(args.image)
+    if input_path.is_file():
+        subfolder_name = input_path.stem
+    else:
+        subfolder_name = input_path.name
+
+    output_dir = Path(args.output) / subfolder_name
+
+    # Check if output directory exists and has files
+    if output_dir.exists() and any(output_dir.iterdir()):
+        if not args.overwrite:
+            print(f"❌ Error: Output directory '{output_dir}' already contains files.")
+            print("   Use --overwrite flag to overwrite existing files.")
+            sys.exit(1)
+        else:
+            print(f"⚠️  Overwriting existing files in: {output_dir}")
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    image_name = Path(args.image).stem
+    image_name = input_path.stem
 
     print("\n🎨 CREATING VISUALIZATIONS...")
 
@@ -224,6 +260,12 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
     else:
         print("      ⚠️  Skipping chess diagram (no chess position detected)")
 
+    # 5. Create combined visualization with all plots as subplots
+    print("   🎨 Creating combined visualization...")
+    create_combined_visualization(
+        chess_analysis, output_dir, image_name, args.skip_piece_detection, use_weighted_center
+    )
+
     print(f"\n📁 All visualizations saved to: {output_dir.absolute()}")
 
 
@@ -253,6 +295,7 @@ def main():
             segmentation_model=args.segmentation_model,
             piece_detection_model=piece_model,
             corner_method=args.corner_method,
+            threshold=args.threshold,
         )
 
         # Analyze the image
@@ -273,8 +316,17 @@ def main():
                 visualization_count += 2  # bounding boxes + centers
             if chess_analysis.chess_board.board_position:
                 visualization_count += 1  # chess diagram
+            visualization_count += 1  # combined visualization
             print(f"📁 Generated {visualization_count} visualization files")
-            print(f"📁 All results saved to: {Path(args.output).absolute()}")
+
+            # Show the actual output directory (with subfolder)
+            input_path = Path(args.image)
+            if input_path.is_file():
+                subfolder_name = input_path.stem
+            else:
+                subfolder_name = input_path.name
+            actual_output_dir = Path(args.output) / subfolder_name
+            print(f"📁 All results saved to: {actual_output_dir.absolute()}")
 
     except Exception as e:
         print(f"❌ Analysis failed: {e}")

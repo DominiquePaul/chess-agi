@@ -276,33 +276,71 @@ def apply_perspective_transformation(
     threshold: int = 0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Apply perspective transformation to the image.
+    Apply perspective transformation to the image to create a top-down view of the chess board.
 
-        Args:
-            image (np.ndarray): The image to apply the perspective transformation to.
-            top_left (tuple): The top left corner of the chess board.
-            top_right (tuple): The top right corner of the chess board.
-            bottom_left (tuple): The bottom left corner of the chess board.
-            bottom_right (tuple): The bottom right corner of the chess board.
+    Args:
+        image (np.ndarray): The input image to apply the perspective transformation to.
+        top_left (tuple | Point): The top left corner coordinates of the chess board.
+        top_right (tuple | Point): The top right corner coordinates of the chess board.
+        bottom_left (tuple | Point): The bottom left corner coordinates of the chess board.
+        bottom_right (tuple | Point): The bottom right corner coordinates of the chess board.
+        threshold (int, optional): Percentage expansion from center (0-100). Defaults to 0.
 
     Returns:
-        tuple: The perspective transformation matrix and the warped image.
+        tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - The perspective transformation matrix (3x3 numpy array)
+            - The warped image as a numpy array in RGB format
     """
     # read image and convert it to different color spaces
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+    # Convert Point objects to tuples if necessary
+    def point_to_tuple(point):
+        if hasattr(point, "x") and hasattr(point, "y"):
+            return (point.x, point.y)
+        return point
+
     # Define the four source points (replace with actual coordinates)
-    extreme_points_list = np.array([top_left, top_right, bottom_left, bottom_right], dtype=np.float32)
+    corners = [
+        point_to_tuple(top_left),
+        point_to_tuple(top_right),
+        point_to_tuple(bottom_left),
+        point_to_tuple(bottom_right),
+    ]
+    extreme_points_list = np.array(corners, dtype=np.float32)
+
+    # Calculate the center of the detected board
+    center_x = np.mean(extreme_points_list[:, 0])
+    center_y = np.mean(extreme_points_list[:, 1])
+
+    # If threshold > 0, expand the corners from the center by the specified percentage
+    if threshold > 0:
+        expansion_factor = 1 + (threshold / 100.0)  # Convert percentage to expansion factor
+
+        # Expand each corner from the center
+        expanded_points = []
+        for point in extreme_points_list:
+            # Calculate vector from center to corner
+            dx = point[0] - center_x
+            dy = point[1] - center_y
+
+            # Expand the vector by the expansion factor
+            new_x = center_x + dx * expansion_factor
+            new_y = center_y + dy * expansion_factor
+
+            expanded_points.append([new_x, new_y])
+
+        extreme_points_list = np.array(expanded_points, dtype=np.float32)
 
     width, height = 1200, 1200
 
-    # Define the destination points (shifted by 'threshold' on all sides)
+    # Define the destination points (standard corners)
     dst_pts = np.array(
         [
-            [threshold, threshold],
-            [width + threshold, threshold],
-            [threshold, height + threshold],
-            [width + threshold, height + threshold],
+            [0, 0],
+            [width, 0],
+            [0, height],
+            [width, height],
         ],
         dtype=np.float32,
     )
@@ -310,8 +348,8 @@ def apply_perspective_transformation(
     # Compute the perspective transform matrix
     M = cv2.getPerspectiveTransform(extreme_points_list, dst_pts)
 
-    # Apply the transformation with extra width and height
-    warped_image = cv2.warpPerspective(rgb_image, M, (width + 2 * threshold, height + 2 * threshold))
+    # Apply the transformation
+    warped_image = cv2.warpPerspective(rgb_image, M, (width, height))
 
     return M, warped_image
 
