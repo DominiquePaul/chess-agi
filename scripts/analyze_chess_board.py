@@ -19,6 +19,21 @@ python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from t
 # Camera positioned from side perspective (white at left)
 python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from l
 
+# Predict best move for white
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white
+
+# Predict best move for black with verbose output
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as black --verbose
+
+# Use different Stockfish difficulty levels
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --stockfish-skill 15
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --stockfish-skill 5 --engine-time 0.5
+
+# Use simple evaluation instead of Stockfish
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --engine-type simple
+
+# All visualizations will show move arrows when move prediction is enabled
+
 # Overwrite existing files in output directory
 python scripts/analyze_chess_board.py --image chess.jpg --overwrite
 """
@@ -108,6 +123,39 @@ def parse_args():
         help="Use geometric center coordinates instead of weighted center",
     )
 
+    # Move prediction options
+    parser.add_argument(
+        "--computer-playing-as",
+        type=str,
+        choices=["white", "black"],
+        help="Color the computer is playing as for move prediction ('white' or 'black')",
+    )
+    parser.add_argument(
+        "--engine-type",
+        type=str,
+        choices=["stockfish", "simple"],
+        default="stockfish",
+        help="Chess engine to use for move prediction (default: stockfish)",
+    )
+    parser.add_argument(
+        "--engine-depth",
+        type=int,
+        default=10,
+        help="Maximum search depth for chess engine (default: 10)",
+    )
+    parser.add_argument(
+        "--engine-time",
+        type=float,
+        default=1.0,
+        help="Maximum time in seconds for engine to think (default: 1.0)",
+    )
+    parser.add_argument(
+        "--stockfish-skill",
+        type=int,
+        default=20,
+        help="Stockfish skill level 0-20, where 20 is strongest (default: 20)",
+    )
+
     # Output options
     parser.add_argument(
         "--output",
@@ -174,14 +222,14 @@ def print_analysis_results(chess_analysis, args):
     # Piece detection results
     chess_pieces = chess_analysis.chess_board.chess_pieces
     if not args.skip_piece_detection and chess_pieces:
-        print(f"\n♟️  CHESS PIECES DETECTED: {len(chess_pieces)}")
+        print(f"\n  CHESS PIECES DETECTED: {len(chess_pieces)}")
         if args.verbose:
             print("   Detected pieces:")
             for piece in chess_pieces:
                 square_info = f" -> Square {piece.assigned_square}" if piece.assigned_square else ""
                 print(f"   {piece.piece_name}: {piece.confidence:.2f}{square_info}")
     elif not args.skip_piece_detection:
-        print("\n♟️  No chess pieces detected")
+        print("\n  No chess pieces detected")
 
     # Chess position
     chess_position = chess_analysis.chess_board.board_position
@@ -191,6 +239,28 @@ def print_analysis_results(chess_analysis, args):
             print(f"   FEN: {chess_position.fen()}")
             print(f"   Turn: {'White' if chess_position.turn else 'Black'}")
             print(f"   Legal moves: {len(list(chess_position.legal_moves))}")
+
+    # Move prediction results
+    move_analysis = chess_analysis.move_analysis
+    if move_analysis and move_analysis.computer_playing_as:
+        print(f"\n🤖 MOVE PREDICTION ({move_analysis.computer_playing_as.upper()})")
+        if move_analysis.next_move:
+            print(f"   Best move: {move_analysis.next_move}")
+            if move_analysis.evaluation_score is not None:
+                print(f"   Evaluation: {move_analysis.evaluation_score:.2f}")
+            if move_analysis.move_coordinates:
+                from_coord = move_analysis.move_coordinates["from"]
+                to_coord = move_analysis.move_coordinates["to"]
+                print(f"   From pixel: ({from_coord.x:.1f}, {from_coord.y:.1f})")
+                print(f"   To pixel: ({to_coord.x:.1f}, {to_coord.y:.1f})")
+        else:
+            print("   No move predicted (not computer's turn or invalid position)")
+
+        if args.verbose and move_analysis.legal_moves:
+            print(f"   Total legal moves available: {len(move_analysis.legal_moves)}")
+    elif hasattr(args, "computer_playing_as") and args.computer_playing_as:
+        print("\n🤖 MOVE PREDICTION REQUESTED BUT NOT AVAILABLE")
+        print("   (Check that chess position was detected correctly)")
 
 
 def save_visualizations(chess_analysis, args, use_weighted_center=True):
@@ -315,6 +385,11 @@ def main():
             corner_method=args.corner_method,
             threshold=args.threshold,
             white_playing_from=args.white_playing_from,
+            computer_playing_as=args.computer_playing_as,
+            engine_type=args.engine_type,
+            engine_depth=args.engine_depth,
+            engine_time_limit=args.engine_time,
+            stockfish_skill_level=args.stockfish_skill,
         )
 
         # Analyze the image

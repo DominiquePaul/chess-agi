@@ -77,6 +77,11 @@ class ChessBoardAnalyzer:
         create_visualizations: bool = True,
         threshold: int = 0,
         white_playing_from: str = "b",
+        computer_playing_as: str | None = None,
+        engine_type: str = "stockfish",
+        engine_depth: int = 10,
+        engine_time_limit: float = 1.0,
+        stockfish_skill_level: int = 20,
     ):
         """
         Initialize the chess board analyzer.
@@ -88,6 +93,11 @@ class ChessBoardAnalyzer:
             create_visualizations: Whether to create visualization images
             threshold: Percentage expansion of chess board from center (0-100, default: 0)
             white_playing_from: Side where white is playing from - "b" (bottom), "t" (top), "l" (left), "r" (right) (default: "b")
+            computer_playing_as: Color the computer is playing as - "white", "black", or None to disable move prediction (default: None)
+            engine_type: Chess engine to use - "stockfish" or "simple" (default: "stockfish")
+            engine_depth: Maximum search depth for engine (default: 10)
+            engine_time_limit: Maximum time in seconds for engine to think (default: 1.0)
+            stockfish_skill_level: Stockfish skill level 0-20, where 20 is strongest (default: 20)
         """
         self.segmentation_model_name = segmentation_model
         self.piece_detection_model_name = piece_detection_model
@@ -95,6 +105,11 @@ class ChessBoardAnalyzer:
         self.create_visualizations = create_visualizations
         self.threshold = threshold
         self.white_playing_from = white_playing_from
+        self.computer_playing_as = computer_playing_as
+        self.engine_type = engine_type
+        self.engine_depth = engine_depth
+        self.engine_time_limit = engine_time_limit
+        self.stockfish_skill_level = stockfish_skill_level
 
         # Validate white_playing_from parameter
         if white_playing_from not in ["b", "t", "l", "r"]:
@@ -102,8 +117,36 @@ class ChessBoardAnalyzer:
                 f"Invalid white_playing_from: {white_playing_from}. Must be one of: 'b' (bottom), 't' (top), 'l' (left), 'r' (right)"
             )
 
+        # Validate computer_playing_as parameter
+        if computer_playing_as is not None and computer_playing_as not in ["white", "black"]:
+            raise ValueError(
+                f"Invalid computer_playing_as: {computer_playing_as}. Must be one of: 'white', 'black', or None"
+            )
+
+        # Validate engine parameters
+        if engine_type not in ["stockfish", "simple"]:
+            raise ValueError(f"Invalid engine_type: {engine_type}. Must be 'stockfish' or 'simple'")
+
+        if not 0 <= stockfish_skill_level <= 20:
+            raise ValueError(f"Invalid stockfish_skill_level: {stockfish_skill_level}. Must be between 0-20")
+
         perspective_names = {"b": "bottom", "t": "top", "l": "left", "r": "right"}
         print(f"🎯 White playing from: {perspective_names[white_playing_from]} ({white_playing_from})")
+
+        if computer_playing_as:
+            print(f"🤖 Computer playing as: {computer_playing_as}")
+            print(f"🧠 Engine: {engine_type}")
+            if engine_type == "stockfish":
+                print(
+                    f"⚙️  Stockfish settings: skill={stockfish_skill_level}, depth={engine_depth}, time={engine_time_limit}s"
+                )
+        else:
+            print("🤖 Move prediction disabled")
+
+        # Initialize chess engine
+        self.chess_engine = None
+        if computer_playing_as and engine_type == "stockfish":
+            self._initialize_stockfish()
 
         # Initialize segmentation model
         try:
@@ -125,7 +168,11 @@ class ChessBoardAnalyzer:
             print("ℹ️  Piece detection disabled (no model specified)")
 
     def analyze_board(
-        self, input_image: str | Path | np.ndarray, conf_threshold: float = 0.5, use_weighted_center: bool = True
+        self,
+        input_image: str | Path | np.ndarray,
+        conf_threshold: float = 0.5,
+        use_weighted_center: bool = True,
+        computer_playing_as: str | None = None,
     ) -> ChessAnalysis:
         """
         Analyze a chess board image to extract corners, pieces, and position.
@@ -134,6 +181,8 @@ class ChessBoardAnalyzer:
             input_image: Image path (string/Path) or numpy array
             conf_threshold: Confidence threshold for piece detection
             use_weighted_center: If True, use weighted_center (default), if False use center
+            computer_playing_as: Override computer color for move prediction ("white", "black", or None).
+                               If None, uses the default from initialization.
 
         Returns:
             ChessAnalysis object containing all analysis results
@@ -204,7 +253,13 @@ class ChessBoardAnalyzer:
             white_playing_from=self.white_playing_from,
         )
 
-        # Step 6: Create comprehensive result
+        # Step 6: Determine which color the computer should play as
+        effective_computer_color = computer_playing_as if computer_playing_as is not None else self.computer_playing_as
+
+        # Step 7: Predict the best move if requested
+        move_analysis = self._predict_best_move(chess_board, effective_computer_color)
+
+        # Step 8: Create comprehensive result
         chess_analysis = ChessAnalysis(
             metadata=Metadata(
                 original_image=original_image,
@@ -218,11 +273,7 @@ class ChessBoardAnalyzer:
             ),
             chess_board=chess_board,
             visualisations=None,
-            move_analysis=MoveAnalysis(
-                next_move=None,
-                move_coordinates=None,
-                legal_moves=None,
-            ),
+            move_analysis=move_analysis,
         )
         print("✅ Chess board analysis completed successfully!")
 
@@ -514,6 +565,298 @@ class ChessBoardAnalyzer:
 
         # Return the updated chess_pieces list (with discarded kings removed)
         return updated_chess_pieces, chess_squares
+
+    def _initialize_stockfish(self):
+        """Initialize Stockfish chess engine with configured settings."""
+        try:
+            from stockfish import Stockfish
+
+            # Initialize Stockfish with the correct path
+            self.chess_engine = Stockfish(path="/opt/homebrew/bin/stockfish")
+
+            # Configure Stockfish settings
+            self.chess_engine.set_depth(self.engine_depth)
+
+            # Set skill level (0-20, where 20 is strongest)
+            self.chess_engine.set_skill_level(self.stockfish_skill_level)
+
+            print("✅ Stockfish engine initialized successfully")
+
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to initialize Stockfish: {e}")
+            print("   Falling back to simple evaluation")
+            self.chess_engine = None
+            self.engine_type = "simple"
+
+    def _get_stockfish_move(self, board: chess.Board) -> tuple[chess.Move | None, float | None]:
+        """
+        Get the best move from Stockfish engine.
+
+        Args:
+            board: Current chess board position
+
+        Returns:
+            Tuple of (best_move, evaluation_score)
+        """
+        try:
+            if self.chess_engine is None:
+                return None, None
+
+            # Set the position in Stockfish
+            self.chess_engine.set_fen_position(board.fen())
+
+            # Get the best move from Stockfish
+            best_move_str = self.chess_engine.get_best_move_time(int(self.engine_time_limit * 1000))
+
+            if best_move_str:
+                # Convert string to chess.Move
+                best_move = chess.Move.from_uci(best_move_str)
+
+                # Get evaluation score
+                evaluation = self.chess_engine.get_evaluation()
+                if evaluation and evaluation.get("type") == "cp":
+                    # Centipawn evaluation (divide by 100 to get pawn units)
+                    score = evaluation.get("value", 0) / 100.0
+                elif evaluation and evaluation.get("type") == "mate":
+                    # Mate score
+                    mate_moves = evaluation.get("value", 0)
+                    score = 10000 if mate_moves > 0 else -10000
+                else:
+                    score = 0.0
+
+                print(f"🏆 Stockfish found: {best_move} (eval: {score:.2f})")
+                return best_move, score
+            else:
+                print("⚠️  Stockfish could not find a move")
+                return None, None
+
+        except Exception as e:
+            print(f"❌ Error getting Stockfish move: {e}")
+            return None, None
+
+    def _get_simple_move(
+        self, board: chess.Board, legal_moves: list, computer_is_white: bool
+    ) -> tuple[chess.Move | None, float | None]:
+        """
+        Get the best move using simple evaluation (fallback method).
+
+        Args:
+            board: Current chess board position
+            legal_moves: List of legal moves
+            computer_is_white: True if computer is playing white
+
+        Returns:
+            Tuple of (best_move, evaluation_score)
+        """
+        print("🔍 Using simple evaluation...")
+
+        best_move = None
+        best_score = float("-inf") if computer_is_white else float("inf")
+
+        for move in legal_moves:
+            # Make the move temporarily
+            board.push(move)
+
+            # Evaluate the position
+            score = self._evaluate_position(board, computer_is_white)
+
+            # Check if this is the best move so far
+            if computer_is_white and score > best_score:
+                best_score = score
+                best_move = move
+            elif not computer_is_white and score < best_score:
+                best_score = score
+                best_move = move
+
+            # Undo the move
+            board.pop()
+
+        return best_move, best_score
+
+    def _predict_best_move(self, chess_board: ChessBoard, computer_playing_as: str | None) -> MoveAnalysis:
+        """
+        Predict the best move for the specified color using a simple evaluation algorithm.
+
+        Args:
+            chess_board: ChessBoard object containing the current position
+            computer_playing_as: Color the computer is playing as ("white", "black", or None)
+
+        Returns:
+            MoveAnalysis object with predicted move and analysis
+        """
+        # If no computer color specified or no valid board position, return empty analysis
+        if computer_playing_as is None or chess_board.board_position is None:
+            return MoveAnalysis(
+                next_move=None,
+                move_coordinates=None,
+                legal_moves=None,
+                evaluation_score=None,
+                computer_playing_as=computer_playing_as,
+            )
+
+        try:
+            board = chess_board.board_position
+            legal_moves = list(board.legal_moves)
+
+            if not legal_moves:
+                print("⚠️  No legal moves available")
+                return MoveAnalysis(
+                    next_move=None,
+                    move_coordinates=None,
+                    legal_moves=[],
+                    evaluation_score=None,
+                    computer_playing_as=computer_playing_as,
+                )
+
+            print(f"🤔 Analyzing {len(legal_moves)} legal moves for {computer_playing_as}...")
+
+            # Determine if it's the computer's turn
+            computer_is_white = computer_playing_as == "white"
+            is_computer_turn = board.turn == computer_is_white
+
+            if not is_computer_turn:
+                print(f"ℹ️  It's not {computer_playing_as}'s turn to move")
+                return MoveAnalysis(
+                    next_move=None,
+                    move_coordinates=None,
+                    legal_moves=legal_moves,
+                    evaluation_score=None,
+                    computer_playing_as=computer_playing_as,
+                )
+
+            # Use Stockfish if available, otherwise fall back to simple evaluation
+            if self.engine_type == "stockfish" and self.chess_engine is not None:
+                best_move, best_score = self._get_stockfish_move(board)
+            else:
+                best_move, best_score = self._get_simple_move(board, legal_moves, computer_is_white)
+
+            if best_move:
+                print(f"🎯 Best move found: {best_move} (score: {best_score:.2f})")
+
+                # Get move coordinates
+                move_coordinates = self._get_move_coordinates(best_move, chess_board.chess_squares)
+
+                return MoveAnalysis(
+                    next_move=best_move,
+                    move_coordinates=move_coordinates,
+                    legal_moves=legal_moves,
+                    evaluation_score=best_score,
+                    computer_playing_as=computer_playing_as,
+                )
+            else:
+                print("⚠️  Failed to find best move")
+                return MoveAnalysis(
+                    next_move=None,
+                    move_coordinates=None,
+                    legal_moves=legal_moves,
+                    evaluation_score=None,
+                    computer_playing_as=computer_playing_as,
+                )
+
+        except Exception as e:
+            print(f"❌ Error during move prediction: {e}")
+            return MoveAnalysis(
+                next_move=None,
+                move_coordinates=None,
+                legal_moves=None,
+                evaluation_score=None,
+                computer_playing_as=computer_playing_as,
+            )
+
+    def _evaluate_position(self, board: chess.Board, computer_is_white: bool) -> float:
+        """
+        Simple position evaluation function.
+
+        Args:
+            board: Current board position
+            computer_is_white: True if computer is playing white
+
+        Returns:
+            Position evaluation score (positive = good for white, negative = good for black)
+        """
+        if board.is_checkmate():
+            # Checkmate is very good/bad depending on who's mated
+            return 10000 if board.turn != computer_is_white else -10000
+
+        if board.is_stalemate() or board.is_insufficient_material():
+            return 0  # Draw
+
+        # Simple material evaluation
+        piece_values = {
+            chess.PAWN: 1,
+            chess.KNIGHT: 3,
+            chess.BISHOP: 3,
+            chess.ROOK: 5,
+            chess.QUEEN: 9,
+            chess.KING: 0,  # King value doesn't matter for material count
+        }
+
+        score = 0
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece:
+                value = piece_values[piece.piece_type]
+                if piece.color == chess.WHITE:
+                    score += value
+                else:
+                    score -= value
+
+        # Add small bonus for piece activity (number of legal moves)
+        mobility_bonus = len(list(board.legal_moves)) * 0.1
+        if board.turn == chess.WHITE:
+            score += mobility_bonus
+        else:
+            score -= mobility_bonus
+
+        return score
+
+    def _get_move_coordinates(
+        self, move: chess.Move, chess_squares: dict[int, ChessBoardSquare]
+    ) -> dict[str, Point] | None:
+        """
+        Get pixel coordinates for a chess move.
+
+        Args:
+            move: Chess move object
+            chess_squares: Dictionary mapping square numbers to coordinates
+
+        Returns:
+            Dictionary with 'from' and 'to' Point coordinates, or None if not found
+        """
+        try:
+            # Convert chess squares to square numbers (1-64 format used in chess_squares)
+            from_square_chess = move.from_square
+            to_square_chess = move.to_square
+
+            # Convert chess library squares to our square numbering (1-64)
+            # chess library uses 0-63, we use 1-64
+            # chess library: a1=0, h1=7, a8=56, h8=63
+            # our format: a1=57, h1=64, a8=1, h8=8 (bottom-left to top-right)
+
+            from_file = chess.square_file(from_square_chess)  # 0-7 for a-h
+            from_rank = chess.square_rank(from_square_chess)  # 0-7 for 1-8
+            to_file = chess.square_file(to_square_chess)
+            to_rank = chess.square_rank(to_square_chess)
+
+            # Convert to our square numbering (1-64, bottom-left to top-right)
+            from_square_num = (7 - from_rank) * 8 + from_file + 1
+            to_square_num = (7 - to_rank) * 8 + to_file + 1
+
+            from_square_data = chess_squares.get(from_square_num)
+            to_square_data = chess_squares.get(to_square_num)
+
+            if from_square_data and to_square_data:
+                return {
+                    "from": from_square_data.center,
+                    "to": to_square_data.center,
+                }
+            else:
+                print(f"⚠️  Could not find coordinates for move {move}")
+                return None
+
+        except Exception as e:
+            print(f"❌ Error getting move coordinates: {e}")
+            return None
 
     def get_piece_at_square(self, result: dict, square_name: str) -> str | None:
         """

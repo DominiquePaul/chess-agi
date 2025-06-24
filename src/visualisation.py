@@ -10,6 +10,87 @@ import numpy as np
 from src.datatypes import ChessAnalysis
 
 
+def draw_move_arrow(vis_image: np.ndarray, chess_analysis: ChessAnalysis) -> np.ndarray:
+    """
+    Draw an arrow showing the predicted best move on a visualization image.
+
+    Args:
+        vis_image: The visualization image to draw on
+        chess_analysis: ChessAnalysis containing move prediction data
+
+    Returns:
+        Image with move arrow drawn (modifies original)
+    """
+    move_analysis = chess_analysis.move_analysis
+
+    # Only draw if we have a predicted move with coordinates
+    if (
+        move_analysis
+        and move_analysis.next_move
+        and move_analysis.move_coordinates
+        and move_analysis.computer_playing_as
+    ):
+        try:
+            from_coord = move_analysis.move_coordinates["from"]
+            to_coord = move_analysis.move_coordinates["to"]
+
+            # Convert to integer coordinates
+            start_point = (int(from_coord.x), int(from_coord.y))
+            end_point = (int(to_coord.x), int(to_coord.y))
+
+            # Choose arrow color based on computer color
+            if move_analysis.computer_playing_as == "white":
+                arrow_color = (255, 255, 0)  # Yellow for white
+                outline_color = (0, 0, 0)  # Black outline
+            else:
+                arrow_color = (255, 165, 0)  # Orange for black
+                outline_color = (255, 255, 255)  # White outline
+
+            # Draw thick arrow with outline for visibility
+            # First draw a thicker outline
+            cv2.arrowedLine(vis_image, start_point, end_point, outline_color, 8, tipLength=0.3)
+            # Then draw the main arrow
+            cv2.arrowedLine(vis_image, start_point, end_point, arrow_color, 5, tipLength=0.3)
+
+            # Add move label
+            move_text = f"Best: {move_analysis.next_move}"
+            if move_analysis.evaluation_score is not None:
+                move_text += f" ({move_analysis.evaluation_score:.2f})"
+
+            # Position label near the start of the arrow
+            label_x = start_point[0] - 20
+            label_y = start_point[1] - 20
+
+            # Ensure label is within image bounds
+            if label_x < 0:
+                label_x = start_point[0] + 20
+            if label_y < 20:
+                label_y = start_point[1] + 40
+
+            # Get text size for background
+            (text_width, text_height), _ = cv2.getTextSize(move_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+
+            # Draw background rectangle for text
+            bg_color = outline_color
+            cv2.rectangle(
+                vis_image,
+                (label_x - 5, label_y - text_height - 5),
+                (label_x + text_width + 5, label_y + 5),
+                bg_color,
+                -1,
+            )
+
+            # Draw text
+            cv2.putText(vis_image, move_text, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, arrow_color, 2)
+
+            print(f"🏹 Added move arrow: {move_analysis.next_move} ({move_analysis.computer_playing_as})")
+
+        except Exception as e:
+            print(f"⚠️  Failed to draw move arrow: {e}")
+
+    return vis_image
+
+
 def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis) -> np.ndarray:
     """
     Create visualization showing board corners and chess grid with square labels.
@@ -85,6 +166,9 @@ def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis) -> np.n
                 2,
             )
 
+    # Add move arrow if available
+    vis_image = draw_move_arrow(vis_image, chess_analysis)
+
     return vis_image
 
 
@@ -156,6 +240,9 @@ def create_piece_bounding_boxes_visualization(chess_analysis: ChessAnalysis) -> 
             (255, 255, 255),  # White text
             1,
         )
+
+    # Add move arrow if available
+    vis_image = draw_move_arrow(vis_image, chess_analysis)
 
     return vis_image
 
@@ -268,6 +355,94 @@ def create_piece_centers_visualization(chess_analysis: ChessAnalysis, use_weight
         )
 
     return vis_image
+
+
+def draw_move_arrow_matplotlib(ax, chess_analysis: ChessAnalysis) -> None:
+    """
+    Draw an arrow showing the predicted best move on a matplotlib axes.
+
+    Args:
+        ax: Matplotlib axes to draw on
+        chess_analysis: ChessAnalysis containing move prediction data
+    """
+    move_analysis = chess_analysis.move_analysis
+
+    # Only draw if we have a predicted move
+    if move_analysis and move_analysis.next_move and move_analysis.computer_playing_as:
+        try:
+            import chess
+
+            # Get the move squares
+            from_square = move_analysis.next_move.from_square
+            to_square = move_analysis.next_move.to_square
+
+            # Convert to board coordinates (0-7 for files, 0-7 for ranks)
+            from_file = chess.square_file(from_square)
+            from_rank = chess.square_rank(from_square)
+            to_file = chess.square_file(to_square)
+            to_rank = chess.square_rank(to_square)
+
+            # Convert to matplotlib coordinates (y-axis flipped for board display)
+            from_x = from_file + 0.5
+            from_y = 7 - from_rank + 0.5
+            to_x = to_file + 0.5
+            to_y = 7 - to_rank + 0.5
+
+            # Choose arrow color based on computer color
+            if move_analysis.computer_playing_as == "white":
+                arrow_color = "gold"
+                edge_color = "black"
+            else:
+                arrow_color = "orange"
+                edge_color = "white"
+
+            # Draw arrow
+            arrow = matplotlib.patches.FancyArrowPatch(
+                (from_x, from_y),
+                (to_x, to_y),
+                arrowstyle="->",
+                mutation_scale=25,
+                linewidth=4,
+                color=arrow_color,
+                edgecolor=edge_color,
+                alpha=0.8,
+                zorder=10,
+            )
+            ax.add_patch(arrow)
+
+            # Add move label
+            move_text = f"Best: {move_analysis.next_move}"
+            if move_analysis.evaluation_score is not None:
+                move_text += f" ({move_analysis.evaluation_score:.2f})"
+
+            # Position label near the start of the arrow
+            label_x = from_x - 0.3
+            label_y = from_y - 0.5
+
+            # Ensure label is within bounds
+            if label_x < 0:
+                label_x = from_x + 0.3
+            if label_y < 0:
+                label_y = from_y + 0.5
+
+            # Add text with background
+            ax.text(
+                label_x,
+                label_y,
+                move_text,
+                fontsize=10,
+                weight="bold",
+                color=arrow_color,
+                bbox={"boxstyle": "round,pad=0.3", "facecolor": edge_color, "alpha": 0.7},
+                zorder=11,
+            )
+
+            print(
+                f"🏹 Added move arrow to chess diagram: {move_analysis.next_move} ({move_analysis.computer_playing_as})"
+            )
+
+        except Exception as e:
+            print(f"⚠️  Failed to draw move arrow on diagram: {e}")
 
 
 def create_chess_diagram_png(chess_analysis: ChessAnalysis, output_path: Path) -> np.ndarray:
@@ -411,6 +586,9 @@ def create_chess_diagram_png(chess_analysis: ChessAnalysis, output_path: Path) -
         title = "Chess Board (No pieces detected)"
 
     ax.set_title(title, fontsize=16, weight="bold", pad=20)
+
+    # Draw move arrows
+    draw_move_arrow_matplotlib(ax, chess_analysis)
 
     # Save the figure
     plt.tight_layout()

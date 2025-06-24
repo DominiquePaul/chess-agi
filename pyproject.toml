@@ -28,6 +28,7 @@ dependencies = [
     "ruff",
     "scikit-learn>=1.7.0",
     "scipy",
+    "stockfish>=3.28.0",
     "svglib",
     "timm",
     "ultralytics",

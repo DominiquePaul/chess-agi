@@ -130,9 +130,11 @@ class ChessBoardVisualisations:
 
 @dataclass
 class MoveAnalysis:
-    next_move: None
-    move_coordinates: None
-    legal_moves: None
+    next_move: chess.Move | None
+    move_coordinates: dict[str, Point] | None  # Contains 'from' and 'to' coordinates
+    legal_moves: list[chess.Move] | None
+    evaluation_score: float | None = None  # Score from computer's perspective (positive = good for computer)
+    computer_playing_as: str | None = None  # "white" or "black"
 
 
 @dataclass
