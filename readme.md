@@ -358,6 +358,16 @@ corners = seg_model.extract_corners_from_segmentation("image.jpg", polygon_info)
 print(f"Extracted corners: {corners}")
 ```
 
+## 🔧 Development
+
+This project uses Ruff for linting, Bandit for security, and pre-commit hooks for quality checks.
+
+To set up development environment:
+```bash
+pip install pre-commit
+pre-commit install
+```
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
