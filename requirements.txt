@@ -11,4 +11,4 @@ huggingface_hub>=0.16.0
 
 # Optional dependencies
 torch>=1.9.0
-torchvision>=0.10.0 
+torchvision>=0.10.0

@@ -51,7 +51,7 @@ To download datasets, get a free Roboflow API key and set it as an environment v
 
 1. **Visit**: https://roboflow.com/
 2. **Sign up** for a free account (takes 30 seconds)
-3. **Navigate** to Settings → API 
+3. **Navigate** to Settings → API
 4. **Copy** your API key
 5. **Set environment variable**:
    ```bash
@@ -103,7 +103,7 @@ Specify which datasets to download. Default: all datasets.
 ### Upload Control
 ```bash
 --no-individual       # Skip individual dataset uploads, only merged
---no-merged          # Skip merged dataset upload, only individual  
+--no-merged          # Skip merged dataset upload, only individual
 ```
 
 ## 💡 Usage Examples
@@ -444,4 +444,4 @@ python src/chess_board_detection/train.py \
 
 - [Chess Piece Detection](../chess_piece_detection/README.md)
 - [Chessboard Corner Detection](../chess_board_detection/README.md)
-- [Model Training and Inference](../../README.md) 
+- [Model Training and Inference](../../README.md)

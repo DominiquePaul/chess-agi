@@ -97,4 +97,4 @@ This module inherits all functionality from `BaseYOLOModel`, including:
 - Model evaluation and metrics
 - HuggingFace Hub integration
 - Device management (CPU/GPU)
-- Prediction and visualization utilities 
+- Prediction and visualization utilities

@@ -8,7 +8,7 @@ from annotated chess board images using the latest YOLO architecture.
 Usage:
     # Basic training with default settings (YOLO11s COCO pretrained)
     python src/chess_piece_detection/train.py --epochs 100
-    
+
     # Choose different COCO-pretrained model size
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
@@ -27,7 +27,7 @@ Usage:
         --pretrained-model yolo11l.pt \
         --batch 16 \
         --epochs 100
-    
+
     # Custom training parameters
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
@@ -35,7 +35,7 @@ Usage:
         --epochs 100 \
         --batch 16 \
         --imgsz 640
-    
+
     # Training with W&B tracking (auto-enabled if WANDB_API_KEY is set)
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
@@ -46,7 +46,7 @@ Usage:
         --wandb-name "yolo11s-experiment-1" \
         --wandb-tags chess yolo object-detection \
         --wandb-notes "Training chess piece detector with YOLO11s"
-    
+
     # Complete example with all options (including HF upload)
     python src/chess_piece_detection/train.py \
         --data data/chess_pieces_merged/data.yaml \
@@ -71,15 +71,15 @@ Usage:
         --wandb-tags chess yolo training augmentation \
         --hf-repo-id "username/chess-piece-detector" \
         --verbose
-        
+
     # Disable W&B tracking explicitly
     python src/chess_piece_detection/train.py \
         --epochs 100 \
         --disable-wandb
-        
+
 Available COCO-pretrained models:
     - yolo11n.pt (nano, ~2.6MB, fastest)
-    - yolo11s.pt (small, ~9.4MB, fast, recommended)  
+    - yolo11s.pt (small, ~9.4MB, fast, recommended)
     - yolo11m.pt (medium, ~20.1MB, balanced)
     - yolo11l.pt (large, ~25.3MB, accurate)
     - yolo11x.pt (extra large, ~56.9MB, most accurate)
@@ -88,11 +88,11 @@ W&B Integration:
     The script automatically detects Weights & Biases environment and enables logging.
     W&B is auto-enabled when:
     - WANDB_API_KEY environment variable is set, OR
-    - You're logged in via 'wandb login', OR 
+    - You're logged in via 'wandb login', OR
     - Other wandb environment variables are detected
-    
+
     Use --disable-wandb to explicitly turn off W&B logging.
-    
+
     W&B will track:
     - Training/validation loss and metrics
     - Model hyperparameters
@@ -104,328 +104,243 @@ W&B Integration:
 import argparse
 import os
 from pathlib import Path
-from src.chess_piece_detection.model import ChessModel
+
 from dotenv import load_dotenv
-import wandb
-from typing import Optional
+
+from src.chess_piece_detection.model import ChessModel
 
 # Load environment variables from .env file
 load_dotenv()
+
 
 def parse_args():
     """Parse command line arguments for training configuration."""
     parser = argparse.ArgumentParser(
         description="Train Chess Piece Detection Model",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    
+
     # ========================================
     # Dataset and Model Configuration
     # ========================================
     parser.add_argument(
-        "--data", 
-        type=str, 
+        "--data",
+        type=str,
         default=None,
-        help="Path to YOLO dataset YAML file. If not provided, uses DATA_FOLDER_PATH env var + chess_pieces_merged/data.yaml, or auto-downloads from HF"
+        help="Path to YOLO dataset YAML file. If not provided, uses DATA_FOLDER_PATH env var + chess_pieces_merged/data.yaml, or auto-downloads from HF",
     )
     parser.add_argument(
-        "--hf-dataset", 
-        type=str, 
+        "--hf-dataset",
+        type=str,
         default="dopaul/chess-pieces-merged",
-        help="HuggingFace dataset to use if local data not found (default: dopaul/chess-pieces-merged)"
+        help="HuggingFace dataset to use if local data not found (default: dopaul/chess-pieces-merged)",
     )
     parser.add_argument(
-        "--auto-download-hf", 
+        "--auto-download-hf",
         action="store_true",
         default=True,
-        help="Automatically download from HuggingFace if local dataset not found (default: True)"
+        help="Automatically download from HuggingFace if local dataset not found (default: True)",
     )
     parser.add_argument(
-        "--force-download-hf", 
+        "--force-download-hf",
         action="store_true",
-        help="Force re-download from HuggingFace even if local dataset exists"
+        help="Force re-download from HuggingFace even if local dataset exists",
     )
     parser.add_argument(
-        "--pretrained-model", 
-        type=str, 
+        "--pretrained-model",
+        type=str,
         default="yolo11s.pt",
         choices=["yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt"],
-        help="COCO-pretrained YOLO11 model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)"
+        help="COCO-pretrained YOLO11 model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)",
     )
     parser.add_argument(
-        "--models-folder", 
-        type=str, 
+        "--models-folder",
+        type=str,
         default="models/chess_piece_detection",
-        help="Root folder where trained models will be saved"
+        help="Root folder where trained models will be saved",
     )
     parser.add_argument(
-        "--name", 
-        type=str, 
+        "--name",
+        type=str,
         default="training_yolo11s",
-        help="Name for this training run (creates subfolder in models-folder)"
+        help="Name for this training run (creates subfolder in models-folder)",
     )
-    
+
     # ========================================
     # Core Training Parameters
     # ========================================
+    parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs")
+    parser.add_argument("--batch", type=int, default=32, help="Batch size (reduce if GPU memory issues)")
+    parser.add_argument("--imgsz", type=int, default=640, help="Input image size in pixels (square)")
+    parser.add_argument("--lr", type=float, default=0.001, help="Initial learning rate")
+    parser.add_argument("--lrf", type=float, default=0.1, help="Final learning rate (lr * lrf)")
     parser.add_argument(
-        "--epochs", 
-        type=int, 
-        default=100,
-        help="Number of training epochs"
-    )
-    parser.add_argument(
-        "--batch", 
-        type=int, 
-        default=32,
-        help="Batch size (reduce if GPU memory issues)"
-    )
-    parser.add_argument(
-        "--imgsz", 
-        type=int, 
-        default=640,
-        help="Input image size in pixels (square)"
-    )
-    parser.add_argument(
-        "--lr", 
-        type=float, 
-        default=0.001,
-        help="Initial learning rate"
-    )
-    parser.add_argument(
-        "--lrf", 
-        type=float, 
-        default=0.1,
-        help="Final learning rate (lr * lrf)"
-    )
-    parser.add_argument(
-        "--patience", 
-        type=int, 
+        "--patience",
+        type=int,
         default=15,
-        help="Early stopping patience (epochs without improvement)"
+        help="Early stopping patience (epochs without improvement)",
     )
     parser.add_argument(
-        "--save-period", 
-        type=int, 
+        "--save-period",
+        type=int,
         default=10,
-        help="Save model checkpoint every N epochs"
+        help="Save model checkpoint every N epochs",
     )
     parser.add_argument(
-        "--optimizer", 
-        type=str, 
+        "--optimizer",
+        type=str,
         default="AdamW",
         choices=["SGD", "Adam", "AdamW", "NAdam", "RAdam", "RMSProp", "auto"],
-        help="Optimizer to use for training"
+        help="Optimizer to use for training",
     )
     parser.add_argument(
-        "--weight-decay", 
-        type=float, 
+        "--weight-decay",
+        type=float,
         default=0.0005,
-        help="Weight decay for regularization"
+        help="Weight decay for regularization",
     )
-    
+
     # ========================================
     # Data Augmentation Parameters
     # ========================================
     parser.add_argument(
-        "--degrees", 
-        type=float, 
+        "--degrees",
+        type=float,
         default=10.0,
-        help="Rotation augmentation range in degrees"
+        help="Rotation augmentation range in degrees",
     )
     parser.add_argument(
-        "--translate", 
-        type=float, 
+        "--translate",
+        type=float,
         default=0.1,
-        help="Translation augmentation as fraction of image size"
+        help="Translation augmentation as fraction of image size",
     )
+    parser.add_argument("--scale", type=float, default=0.2, help="Scale augmentation range")
+    parser.add_argument("--shear", type=float, default=2.0, help="Shear augmentation range in degrees")
     parser.add_argument(
-        "--scale", 
-        type=float, 
-        default=0.2,
-        help="Scale augmentation range"
-    )
-    parser.add_argument(
-        "--shear", 
-        type=float, 
-        default=2.0,
-        help="Shear augmentation range in degrees"
-    )
-    parser.add_argument(
-        "--perspective", 
-        type=float, 
+        "--perspective",
+        type=float,
         default=0.0001,
-        help="Perspective augmentation (range 0-0.001)"
+        help="Perspective augmentation (range 0-0.001)",
     )
+    parser.add_argument("--fliplr", type=float, default=0.5, help="Horizontal flip probability")
+    parser.add_argument("--flipud", type=float, default=0.0, help="Vertical flip probability")
+    parser.add_argument("--mosaic", type=float, default=1.0, help="Mosaic augmentation probability")
+    parser.add_argument("--mixup", type=float, default=0.1, help="MixUp augmentation probability")
     parser.add_argument(
-        "--fliplr", 
-        type=float, 
-        default=0.5,
-        help="Horizontal flip probability"
-    )
-    parser.add_argument(
-        "--flipud", 
-        type=float, 
-        default=0.0,
-        help="Vertical flip probability"
-    )
-    parser.add_argument(
-        "--mosaic", 
-        type=float, 
-        default=1.0,
-        help="Mosaic augmentation probability"
-    )
-    parser.add_argument(
-        "--mixup", 
-        type=float, 
+        "--copy-paste",
+        type=float,
         default=0.1,
-        help="MixUp augmentation probability"
+        help="Copy-paste augmentation probability",
     )
-    parser.add_argument(
-        "--copy-paste", 
-        type=float, 
-        default=0.1,
-        help="Copy-paste augmentation probability"
-    )
-    
+
     # ========================================
     # Advanced Training Parameters
     # ========================================
+    parser.add_argument("--warmup-epochs", type=float, default=3.0, help="Warmup epochs")
+    parser.add_argument("--warmup-momentum", type=float, default=0.8, help="Warmup initial momentum")
     parser.add_argument(
-        "--warmup-epochs", 
-        type=float, 
-        default=3.0,
-        help="Warmup epochs"
-    )
-    parser.add_argument(
-        "--warmup-momentum", 
-        type=float, 
-        default=0.8,
-        help="Warmup initial momentum"
-    )
-    parser.add_argument(
-        "--warmup-bias-lr", 
-        type=float, 
+        "--warmup-bias-lr",
+        type=float,
         default=0.1,
-        help="Warmup initial bias learning rate"
+        help="Warmup initial bias learning rate",
     )
-    parser.add_argument(
-        "--box-loss", 
-        type=float, 
-        default=7.5,
-        help="Box loss gain"
-    )
-    parser.add_argument(
-        "--cls-loss", 
-        type=float, 
-        default=0.5,
-        help="Classification loss gain"
-    )
-    parser.add_argument(
-        "--dfl-loss", 
-        type=float, 
-        default=1.5,
-        help="Distribution focal loss gain"
-    )
-    
+    parser.add_argument("--box-loss", type=float, default=7.5, help="Box loss gain")
+    parser.add_argument("--cls-loss", type=float, default=0.5, help="Classification loss gain")
+    parser.add_argument("--dfl-loss", type=float, default=1.5, help="Distribution focal loss gain")
+
     # ========================================
     # Evaluation and Output Options
     # ========================================
     parser.add_argument(
-        "--eval-individual", 
+        "--eval-individual",
         action="store_true",
-        help="Evaluate on individual datasets (dominique, roboflow) if available"
+        help="Evaluate on individual datasets (dominique, roboflow) if available",
     )
     parser.add_argument(
-        "--hf-repo-id", 
-        type=str, 
+        "--hf-repo-id",
+        type=str,
         default=None,
-        help="Hugging Face repository ID for model upload (e.g., 'username/chess-piece-detector'). If specified, model will be automatically pushed to HF Hub after training."
+        help="Hugging Face repository ID for model upload (e.g., 'username/chess-piece-detector'). If specified, model will be automatically pushed to HF Hub after training.",
     )
+    parser.add_argument("--no-plots", action="store_true", help="Disable training plots generation")
     parser.add_argument(
-        "--no-plots", 
+        "--verbose",
         action="store_true",
-        help="Disable training plots generation"
+        help="Show verbose output including full error tracebacks",
     )
-    parser.add_argument(
-        "--verbose", 
-        action="store_true",
-        help="Show verbose output including full error tracebacks"
-    )
-    
+
     # ========================================
     # W&B Integration Options
     # ========================================
     # Auto-detect wandb environment and set as default
     wandb_detected = detect_wandb_environment()
     parser.add_argument(
-        "--disable-wandb", 
+        "--disable-wandb",
         action="store_true",
-        help=f"Disable Weights & Biases tracking (auto-detected: {'enabled' if wandb_detected else 'disabled'})"
+        help=f"Disable Weights & Biases tracking (auto-detected: {'enabled' if wandb_detected else 'disabled'})",
     )
     parser.add_argument(
-        "--wandb-project", 
-        type=str, 
+        "--wandb-project",
+        type=str,
         default="chess-piece-detection",
-        help="W&B project name"
+        help="W&B project name",
     )
     parser.add_argument(
-        "--wandb-name", 
-        type=str, 
+        "--wandb-name",
+        type=str,
         default=None,
-        help="W&B run name (defaults to training name)"
+        help="W&B run name (defaults to training name)",
     )
     parser.add_argument(
-        "--wandb-tags", 
-        type=str, 
+        "--wandb-tags",
+        type=str,
         nargs="+",
         default=None,
-        help="W&B tags for this run (space-separated)"
+        help="W&B tags for this run (space-separated)",
     )
-    parser.add_argument(
-        "--wandb-notes", 
-        type=str, 
-        default=None,
-        help="Notes for W&B run"
-    )
-    
+    parser.add_argument("--wandb-notes", type=str, default=None, help="Notes for W&B run")
+
     return parser.parse_args()
+
 
 def detect_wandb_environment():
     """
     Detect if Weights & Biases environment is configured.
-    
+
     Returns:
         bool: True if wandb environment variables are detected
     """
     # Check common wandb environment variables
     wandb_env_vars = [
         "WANDB_API_KEY",
-        "WANDB_PROJECT", 
+        "WANDB_PROJECT",
         "WANDB_ENTITY",
-        "WANDB_BASE_URL"
+        "WANDB_BASE_URL",
     ]
-    
+
     # Check if wandb is installed and any env vars are set
     try:
         import wandb
+
         wandb_available = True
     except ImportError:
         wandb_available = False
-    
+
     # Check if any wandb environment variables are set
     has_wandb_env = any(os.environ.get(var) for var in wandb_env_vars)
-    
+
     # Check if user is logged in to wandb
     wandb_logged_in = False
     if wandb_available:
         try:
             # This will check if wandb is configured
             import wandb
+
             wandb_logged_in = wandb.api.api_key is not None
-        except:
+        except (ImportError, AttributeError):
             pass
-    
+
     return wandb_available and (has_wandb_env or wandb_logged_in)
 
 
@@ -437,56 +352,56 @@ def get_default_data_path():
     return Path(data_folder) / "chess_pieces_merged" / "data.yaml"
 
 
-def auto_download_hf_dataset(hf_repo: str, force_download: bool = False) -> Optional[Path]:
+def auto_download_hf_dataset(hf_repo: str, force_download: bool = False) -> Path | None:
     """
     Auto-download chess piece dataset from HuggingFace if not available locally.
-    
+
     Args:
         hf_repo: HuggingFace repository name (e.g., "dopaul/chess-pieces-merged")
         force_download: Force re-download even if local dataset exists
-        
+
     Returns:
         Path to data.yaml file if successful, None if failed
     """
     try:
         # Import here to avoid dependency issues if not needed
-        from src.data_prep.download_from_hf import download_dataset, DATASET_LOCAL_NAMES
-        
+        from src.data_prep.download_from_hf import DATASET_LOCAL_NAMES, download_dataset
+
         # Get local path
         data_folder = os.environ.get("DATA_FOLDER_PATH")
         if not data_folder:
             print("❌ DATA_FOLDER_PATH environment variable not set")
             return None
-            
+
         data_path = Path(data_folder)
-        
+
         # Determine local dataset name
         local_name = DATASET_LOCAL_NAMES.get(hf_repo)
         if not local_name:
             # Create local name from repo name
             local_name = hf_repo.split("/")[-1].replace("-", "_")
-            
+
         local_dataset_path = data_path / local_name
         data_yaml_path = local_dataset_path / "data.yaml"
-        
+
         # Check if dataset already exists
         if data_yaml_path.exists() and not force_download:
             print(f"✅ Found existing dataset at: {data_yaml_path}")
             return data_yaml_path
-            
+
         # Download dataset
         print(f"📥 Auto-downloading dataset from HuggingFace: {hf_repo}")
         print(f"📁 Saving to: {local_dataset_path}")
-        
+
         success = download_dataset(hf_repo, local_name, data_path, convert_to_yolo=True)
-        
+
         if success and data_yaml_path.exists():
             print(f"✅ Successfully downloaded and converted dataset to: {data_yaml_path}")
             return data_yaml_path
         else:
             print(f"❌ Failed to download dataset from {hf_repo}")
             return None
-            
+
     except ImportError:
         print("❌ Cannot import HuggingFace download functionality")
         print("💡 Please ensure 'datasets' and 'huggingface_hub' are installed")
@@ -495,23 +410,24 @@ def auto_download_hf_dataset(hf_repo: str, force_download: bool = False) -> Opti
         print(f"❌ Error downloading dataset: {e}")
         return None
 
+
 def validate_args(args):
     """Validate command line arguments and show helpful error messages."""
-    
+
     # ========================================
     # W&B Configuration
     # ========================================
     # Determine if wandb should be used based on environment detection and user flags
     wandb_detected = detect_wandb_environment()
     args.use_wandb = wandb_detected and not args.disable_wandb
-    
+
     if wandb_detected and args.disable_wandb:
         print("🔕 W&B environment detected but explicitly disabled via --disable-wandb")
     elif wandb_detected and args.use_wandb:
         print("✅ W&B environment detected - automatic logging enabled")
     elif not wandb_detected:
         print("ℹ️  W&B environment not detected - logging disabled")
-        
+
     # Handle force download first
     if args.force_download_hf:
         print(f"🔄 Force downloading dataset from HuggingFace: {args.hf_dataset}")
@@ -523,7 +439,7 @@ def validate_args(args):
         else:
             print("❌ Failed to force download dataset from HuggingFace")
             return False
-    
+
     # Handle default data path
     if args.data is None:
         default_data = get_default_data_path()
@@ -539,7 +455,7 @@ def validate_args(args):
                     args.data = str(downloaded_path)
                     print(f"✅ Using auto-downloaded dataset: {args.data}")
                     return True
-            
+
             print("❌ Error: No dataset specified and default not found!")
             if not os.environ.get("DATA_FOLDER_PATH"):
                 print("💡 Please set DATA_FOLDER_PATH environment variable or use --data")
@@ -548,41 +464,44 @@ def validate_args(args):
                 print("💡 Or specify a different dataset with --data")
                 print(f"💡 Or use --auto-download-hf to download from HuggingFace: {args.hf_dataset}")
             return False
-    
+
     # Check if dataset file exists
     data_path = Path(args.data)
     if not data_path.exists():
         # Try auto-download from HuggingFace if enabled
         if args.auto_download_hf:
-            print(f"🔍 Dataset file '{data_path}' not found, attempting auto-download from HuggingFace: {args.hf_dataset}")
+            print(
+                f"🔍 Dataset file '{data_path}' not found, attempting auto-download from HuggingFace: {args.hf_dataset}"
+            )
             downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=False)
             if downloaded_path:
                 args.data = str(downloaded_path)
                 print(f"✅ Using auto-downloaded dataset: {args.data}")
                 return True
-        
+
         print(f"❌ Error: Dataset file '{data_path}' does not exist!")
-        print(f"💡 Please create the dataset or specify a different path with --data")
+        print("💡 Please create the dataset or specify a different path with --data")
         print(f"💡 Or use --auto-download-hf to download from HuggingFace: {args.hf_dataset}")
         return False
-        
+
     return True
+
 
 def main():
     """Main training function for chess piece detection."""
-    
+
     # Parse and validate command line arguments
     args = parse_args()
     if not validate_args(args):
         return
-    
+
     # ========================================
     # Configuration Setup
     # ========================================
     DATA_YAML = Path(args.data)
     MODELS_FOLDER = Path(args.models_folder)
     MODELS_FOLDER.mkdir(parents=True, exist_ok=True)
-    
+
     # ========================================
     # Training Information Display
     # ========================================
@@ -613,15 +532,15 @@ def main():
         if args.wandb_notes:
             print(f"   Notes: {args.wandb_notes}")
     print("=" * 70)
-    
+
     # ========================================
     # Model Training
     # ========================================
     print("🚀 Initializing Chess Piece Detection Model...")
     print(f"📦 Using {args.pretrained_model} pretrained checkpoint for transfer learning")
-    
+
     model = ChessModel(pretrained_checkpoint=args.pretrained_model)
-    
+
     print("🎯 Starting detection training process...")
     try:
         results = model.train(
@@ -666,11 +585,11 @@ def main():
             wandb_tags=args.wandb_tags,
             wandb_notes=args.wandb_notes,
         )
-        
+
         # Print training summary
         print("📊 Printing training summary...")
         model.print_training_summary(results)
-        
+
         # ========================================
         # Model Saving and Validation
         # ========================================
@@ -684,48 +603,48 @@ def main():
             MODELS_FOLDER / f"{base_name}4" / "weights" / "best.pt",
             MODELS_FOLDER / f"{base_name}5" / "weights" / "best.pt",
         ]
-        
+
         best_model_path = None
         for path in potential_paths:
             if path.exists():
                 best_model_path = path
                 break
-        
+
         if not best_model_path:
             # Default to original path for error message
             best_model_path = MODELS_FOLDER / args.name / "weights" / "best.pt"
-            
+
         if best_model_path.exists():
             print(f"✅ Best detection model saved at: {best_model_path}")
-            print(f"🎯 Training completed successfully!")
-            
+            print("🎯 Training completed successfully!")
+
             # Load the trained model for evaluation
             print("🔍 Loading trained model for evaluation...")
             trained_model = ChessModel(model_path=best_model_path)
-            print(f"✅ Model loaded successfully!")
-            
+            print("✅ Model loaded successfully!")
+
             # ========================================
             # Model Evaluation
             # ========================================
             print("📊 Evaluating model on merged dataset...")
             trained_model.evaluate(DATA_YAML)
-            
+
             # Optional: Evaluate on individual datasets
             if args.eval_individual:
                 data_folder = os.environ.get("DATA_FOLDER_PATH")
                 if data_folder:
                     dominique_yaml = Path(data_folder) / "chess_pieces_dominique" / "data.yaml"
                     roboflow_yaml = Path(data_folder) / "chess_pieces_roboflow" / "data.yaml"
-                    
+
                     if dominique_yaml.exists():
                         print("\n📊 Evaluating model on Dominique dataset...")
                         trained_model.evaluate(dominique_yaml)
-                    
+
                     if roboflow_yaml.exists():
                         print("\n📊 Evaluating model on Roboflow dataset...")
                         trained_model.evaluate(roboflow_yaml)
-            
-            # ========================================  
+
+            # ========================================
             # Optional: Push to Hugging Face
             # ========================================
             if args.hf_repo_id:
@@ -734,23 +653,23 @@ def main():
                     trained_model.push_to_huggingface(
                         repo_id=args.hf_repo_id,
                         commit_message=f"Upload chess piece detection model ({args.pretrained_model} -> {args.epochs} epochs, {args.optimizer} optimizer)",
-                        private=False
+                        private=False,
                     )
                     print("✅ Model successfully pushed to Hugging Face!")
                 except Exception as e:
                     print(f"⚠️  Failed to push to Hugging Face: {e}")
                     if args.verbose:
                         raise
-            
+
         else:
             print(f"⚠️  Warning: Best model not found at expected path: {best_model_path}")
-            
+
     except Exception as e:
         print(f"❌ Training failed with error: {e}")
         if args.verbose:
             raise
         return
-    
+
     # ========================================
     # Training Complete Summary
     # ========================================
@@ -761,18 +680,20 @@ def main():
     print("   Python: model.plot_eval('path/to/test_image.jpg')")
     print("   Python: results = model.predict('image.jpg', conf=0.5)")
     if best_model_path and best_model_path.exists():
-        print(f"   CLI:    python -c \"from src.chess_piece_detection.model import ChessModel; m=ChessModel('{best_model_path}'); m.plot_eval('image.jpg')\"")
-    
+        print(
+            f"   CLI:    python -c \"from src.chess_piece_detection.model import ChessModel; m=ChessModel('{best_model_path}'); m.plot_eval('image.jpg')\""
+        )
+
     print("\n2️⃣  Make predictions:")
     print("   Python: results = model.predict('image.jpg', conf=0.25)")
     print("   Python: for box in results.boxes: print(f'{results.names[int(box.cls)]}: {box.conf:.2f}')")
-    
+
     print("\n3️⃣  Compare model versions:")
     print("   Create comparison plots between different trained models")
-    
+
     print("\n💡 Available Chess Piece Classes:")
     print("   Usually includes: King, Queen, Rook, Bishop, Knight, Pawn (for both colors)")
-    
+
     print("\n💡 COCO Pretrained Models Available:")
     print("   🔹 yolo11n.pt (nano, ~2.6MB, fastest)")
     print("   🔹 yolo11s.pt (small, ~9.4MB, fast, recommended)")
@@ -780,13 +701,14 @@ def main():
     print("   🔹 yolo11l.pt (large, ~25.3MB, accurate)")
     print("   🔹 yolo11x.pt (extra large, ~56.9MB, most accurate)")
     print("   Use: --pretrained-model yolo11m.pt")
-    
+
     print("\n💡 More CLI options:")
     print("   • Add --help to see all available parameters")
     print("   • Use --eval-individual to test on separate datasets")
     print("   • Use --hf-repo-id username/model-name to upload model to Hugging Face")
     print("   • Adjust augmentation parameters for better generalization")
     print("=" * 70)
+
 
 if __name__ == "__main__":
     main()

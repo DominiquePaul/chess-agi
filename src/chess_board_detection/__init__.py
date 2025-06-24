@@ -2,4 +2,4 @@
 
 from .yolo.model import ChessBoardModel
 
-__all__ = ['ChessBoardModel'] 
+__all__ = ["ChessBoardModel"]

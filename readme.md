@@ -42,7 +42,7 @@ For comprehensive dataset options, API setup, troubleshooting, and advanced usag
 The detailed guide covers:
 - Multiple download methods (Hugging Face, Roboflow, Kaggle)
 - Chess piece detection datasets
-- Chessboard corner detection datasets  
+- Chessboard corner detection datasets
 - API key setup and troubleshooting
 - Dataset recreation from source
 - Upload to Hugging Face Hub
@@ -65,13 +65,13 @@ The detailed guide covers:
 
 ## Using the models Training Models
 
-### Quickstart for prediction 
+### Quickstart for prediction
 
 [tbd]
 
 ### Training the models from scratch
 
-Make sure that you've downloaded the data first. 
+Make sure that you've downloaded the data first.
 
 #### Chess Piece Detection
 
@@ -122,7 +122,7 @@ python src/chess_piece_detection/train.py --help
 
 # Available COCO-pretrained models (YOLO11 - latest architecture):
 #   - yolo11n.pt (nano, ~2.6M params, fastest)
-#   - yolo11s.pt (small, ~9.4M params, fast, recommended)  
+#   - yolo11s.pt (small, ~9.4M params, fast, recommended)
 #   - yolo11m.pt (medium, ~20.1M params, balanced)
 #   - yolo11l.pt (large, ~25.3M params, accurate)
 #   - yolo11x.pt (extra large, ~56.9M params, most accurate)

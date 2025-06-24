@@ -114,7 +114,7 @@ Each uploaded dataset includes:
         {
             "class_id": int,        # Chess piece class (0-11)
             "x_center": float,      # Normalized x center (0-1)
-            "y_center": float,      # Normalized y center (0-1) 
+            "y_center": float,      # Normalized y center (0-1)
             "width": float,         # Normalized width (0-1)
             "height": float,        # Normalized height (0-1)
         }
@@ -156,7 +156,7 @@ dataset = load_dataset("your-username/chess-pieces-merged")
 
 # Access different splits
 train_data = dataset["train"]
-valid_data = dataset["valid"] 
+valid_data = dataset["valid"]
 test_data = dataset["test"]
 
 # Example: View first training example
@@ -242,4 +242,4 @@ If you encounter issues:
 
 ---
 
-*This guide covers the essential steps for uploading chess piece detection datasets to Hugging Face Hub. The provided tools handle the conversion from YOLOv8 format to Hugging Face Dataset format automatically.* 
+*This guide covers the essential steps for uploading chess piece detection datasets to Hugging Face Hub. The provided tools handle the conversion from YOLOv8 format to Hugging Face Dataset format automatically.*

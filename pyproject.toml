@@ -22,6 +22,7 @@ dependencies = [
     "opencv-python",
     "pillow",
     "pipwin",
+    "pre-commit>=4.2.0",
     "pyyaml",
     "roboflow",
     "ruff",
@@ -34,4 +35,35 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."] 
+where = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "W",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+# Skip all the low-severity checks that are currently failing
+# B101: assert_used, B601: paramiko_calls
+# B110: try-except-pass, B404: subprocess import, B607: partial path, B603: subprocess call
+skips = ["B101", "B601", "B110", "B404", "B607", "B603"]

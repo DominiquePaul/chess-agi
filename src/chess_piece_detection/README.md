@@ -165,9 +165,9 @@ python src/chess_piece_detection/train.py --disable-wandb
 The model detects 12 chess piece classes:
 ```
 0: black-bishop    6: white-bishop
-1: black-king      7: white-king  
+1: black-king      7: white-king
 2: black-knight    8: white-knight
 3: black-pawn      9: white-pawn
 4: black-queen    10: white-queen
 5: black-rook     11: white-rook
-``` 
+```

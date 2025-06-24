@@ -30,12 +30,12 @@ We also update the paths in the data.yaml
 """
 
 import os
-import kagglehub
 import shutil
+from pathlib import Path
+
+import kagglehub
 import yaml
-from pathlib import Path
 from dotenv import load_dotenv
-from pathlib import Path
 
 load_dotenv()
 
@@ -48,7 +48,7 @@ def process_label_file(file_path: Path):
     modified = False
     new_lines = []
 
-    with open(file_path, "r") as f:
+    with open(file_path) as f:
         lines = f.readlines()
 
     for line in lines:
@@ -103,17 +103,13 @@ def clean_roboflow_data(data_folder_path: Path, folder_name: Path):
 
 
 def download_and_move_roboflow_data(data_folder_path: Path, folder_name: Path):
-    download_path = kagglehub.dataset_download(
-        "imtkaggleteam/chess-pieces-detection-image-dataset"
-    )
+    download_path = kagglehub.dataset_download("imtkaggleteam/chess-pieces-detection-image-dataset")
     download_path = Path(download_path)
     new_path = os.path.join(data_folder_path, folder_name)
     os.makedirs(new_path, exist_ok=True)
 
     # Move entire folder contents
-    shutil.copytree(
-        download_path / "Chess Pieces.yolov8-obb", new_path, dirs_exist_ok=True
-    )
+    shutil.copytree(download_path / "Chess Pieces.yolov8-obb", new_path, dirs_exist_ok=True)
 
 
 def update_data_yaml(data_folder_path: Path, folder_name: Path):
@@ -145,10 +141,10 @@ def update_data_yaml(data_folder_path: Path, folder_name: Path):
     # Create updated data.yaml content with standard relative paths
     data_yaml = {
         "train": "train/images",
-        "val": "valid/images", 
+        "val": "valid/images",
         "test": "test/images",
         "names": updated_names,
-        "nc": len(updated_names)
+        "nc": len(updated_names),
     }
 
     # Write to the original data.yaml file in the dataset directory
