@@ -130,18 +130,8 @@ class ChessBoardAnalyzer:
         if not 0 <= stockfish_skill_level <= 20:
             raise ValueError(f"Invalid stockfish_skill_level: {stockfish_skill_level}. Must be between 0-20")
 
-        perspective_names = {"b": "bottom", "t": "top", "l": "left", "r": "right"}
-        print(f"🎯 White playing from: {perspective_names[white_playing_from]} ({white_playing_from})")
-
-        if computer_playing_as:
-            print(f"🤖 Computer playing as: {computer_playing_as}")
-            print(f"🧠 Engine: {engine_type}")
-            if engine_type == "stockfish":
-                print(
-                    f"⚙️  Stockfish settings: skill={stockfish_skill_level}, depth={engine_depth}, time={engine_time_limit}s"
-                )
-        else:
-            print("🤖 Move prediction disabled")
+        # Configuration is now printed by the main script, not here
+        # to avoid duplicate logging
 
         # Initialize chess engine
         self.chess_engine = None
@@ -187,11 +177,9 @@ class ChessBoardAnalyzer:
         Returns:
             ChessAnalysis object containing all analysis results
         """
-        print(f"🔍 Analyzing image: {input_image}")
         # Step 1: Prepare image and get original dimensions
         original_image = self._load_image(input_image)
         original_height, original_width = original_image.shape[:2]
-        print(f"📏 Original image dimensions: {original_width}x{original_height}")
 
         # Step 2: Detect chess board using segmentation
         print("🎯 Detecting chess board with segmentation...")
@@ -278,13 +266,10 @@ class ChessBoardAnalyzer:
         print("✅ Chess board analysis completed successfully!")
 
         if self.create_visualizations:
-            print("🎨 Creating visualizations...")
-            # Create a temporary path for the diagram
-
-            # Create visualizations
-            corners_and_grid_vis = create_corners_and_grid_visualization(chess_analysis)
-            piece_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis)
-            piece_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center)
+            # Create visualizations without logging (handled by main script)
+            corners_and_grid_vis = create_corners_and_grid_visualization(chess_analysis, verbose=False)
+            piece_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis, verbose=False)
+            piece_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center, verbose=False)
 
             chess_analysis.visualisations = ChessBoardVisualisations(
                 original_image=chess_analysis.metadata.original_image,

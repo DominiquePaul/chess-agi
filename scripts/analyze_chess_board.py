@@ -294,7 +294,7 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
 
     # 1. Create corners and grid visualization
     print("   📍 Creating corners and grid visualization...")
-    corners_vis = create_corners_and_grid_visualization(chess_analysis)
+    corners_vis = create_corners_and_grid_visualization(chess_analysis, args.verbose)
     corners_path = output_dir / f"{image_name}_corners_and_grid.png"
     plt.figure(figsize=(12, 8))
     plt.imshow(corners_vis)
@@ -308,7 +308,7 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
     # 2. Create piece bounding boxes visualization
     if not args.skip_piece_detection and chess_analysis.chess_board.chess_pieces:
         print("   📦 Creating piece bounding boxes visualization...")
-        pieces_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis)
+        pieces_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis, args.verbose)
         pieces_boxes_path = output_dir / f"{image_name}_piece_bounding_boxes.png"
         plt.figure(figsize=(12, 8))
         plt.imshow(pieces_boxes_vis)
@@ -322,7 +322,7 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
         # 3. Create piece centers visualization
         coordinate_method = "weighted_center" if use_weighted_center else "geometric_center"
         print(f"   🎯 Creating piece centers visualization ({coordinate_method})...")
-        pieces_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center)
+        pieces_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center, args.verbose)
         pieces_centers_path = output_dir / f"{image_name}_piece_centers.png"
         plt.figure(figsize=(12, 8))
         plt.imshow(pieces_centers_vis)
@@ -341,7 +341,7 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
         print("   🎨 Creating chess diagram...")
         diagram_path = output_dir / f"{image_name}_chess_diagram.png"
         try:
-            create_chess_diagram_png(chess_analysis, diagram_path)
+            create_chess_diagram_png(chess_analysis, diagram_path, args.verbose)
             print(f"      💾 Saved: {diagram_path}")
         except Exception as e:
             print(f"      ⚠️  Failed to create chess diagram: {e}")
@@ -351,7 +351,7 @@ def save_visualizations(chess_analysis, args, use_weighted_center=True):
     # 5. Create combined visualization with all plots as subplots
     print("   🎨 Creating combined visualization...")
     create_combined_visualization(
-        chess_analysis, output_dir, image_name, args.skip_piece_detection, use_weighted_center
+        chess_analysis, output_dir, image_name, args.skip_piece_detection, use_weighted_center, args.verbose
     )
 
     print(f"\n📁 All visualizations saved to: {output_dir.absolute()}")
@@ -375,9 +375,21 @@ def main():
             not args.use_geometric_center
         )  # Default is True unless --use-geometric-center is specified
         coordinate_method = "weighted_center" if use_weighted_center else "geometric_center"
-        print(f"📍 Using {coordinate_method} for piece mapping")
 
-        # Initialize analyzer
+        # Configuration summary
+        print(f"📍 Using {coordinate_method} for piece mapping")
+        perspective_names = {"b": "bottom", "t": "top", "l": "left", "r": "right"}
+        print(f"🎯 White playing from: {perspective_names[args.white_playing_from]} ({args.white_playing_from})")
+
+        if args.computer_playing_as:
+            print(f"🤖 Computer playing as: {args.computer_playing_as}")
+            print(f"🧠 Engine: {args.engine_type}")
+            if args.engine_type == "stockfish":
+                print(
+                    f"⚙️  Stockfish settings: skill={args.stockfish_skill}, depth={args.engine_depth}, time={args.engine_time}s"
+                )
+
+        # Initialize analyzer with less verbose logging during setup
         piece_model = None if args.skip_piece_detection else args.piece_model
         analyzer = ChessBoardAnalyzer(
             segmentation_model=args.segmentation_model,
@@ -393,6 +405,8 @@ def main():
         )
 
         # Analyze the image
+        print(f"🔍 Analyzing image: {args.image}")
+
         chess_analysis = analyzer.analyze_board(
             input_image=image_path, conf_threshold=args.conf, use_weighted_center=use_weighted_center
         )

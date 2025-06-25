@@ -10,13 +10,14 @@ import numpy as np
 from src.datatypes import ChessAnalysis
 
 
-def draw_move_arrow(vis_image: np.ndarray, chess_analysis: ChessAnalysis) -> np.ndarray:
+def draw_move_arrow(vis_image: np.ndarray, chess_analysis: ChessAnalysis, verbose: bool = False) -> np.ndarray:
     """
     Draw an arrow showing the predicted best move on a visualization image.
 
     Args:
         vis_image: The visualization image to draw on
         chess_analysis: ChessAnalysis containing move prediction data
+        verbose: Whether to print debug messages
 
     Returns:
         Image with move arrow drawn (modifies original)
@@ -40,10 +41,10 @@ def draw_move_arrow(vis_image: np.ndarray, chess_analysis: ChessAnalysis) -> np.
 
             # Choose arrow color based on computer color
             if move_analysis.computer_playing_as == "white":
-                arrow_color = (255, 255, 0)  # Yellow for white
-                outline_color = (0, 0, 0)  # Black outline
+                arrow_color = (128, 0, 128)  # Purple for white
+                outline_color = (255, 255, 255)  # White outline
             else:
-                arrow_color = (255, 165, 0)  # Orange for black
+                arrow_color = (128, 0, 128)  # Purple for black
                 outline_color = (255, 255, 255)  # White outline
 
             # Draw thick arrow with outline for visibility
@@ -83,15 +84,17 @@ def draw_move_arrow(vis_image: np.ndarray, chess_analysis: ChessAnalysis) -> np.
             # Draw text
             cv2.putText(vis_image, move_text, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, arrow_color, 2)
 
-            print(f"🏹 Added move arrow: {move_analysis.next_move} ({move_analysis.computer_playing_as})")
+            if verbose:
+                print(f"🏹 Added move arrow: {move_analysis.next_move} ({move_analysis.computer_playing_as})")
 
         except Exception as e:
-            print(f"⚠️  Failed to draw move arrow: {e}")
+            if verbose:
+                print(f"⚠️  Failed to draw move arrow: {e}")
 
     return vis_image
 
 
-def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis) -> np.ndarray:
+def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis, verbose: bool = False) -> np.ndarray:
     """
     Create visualization showing board corners and chess grid with square labels.
 
@@ -167,12 +170,12 @@ def create_corners_and_grid_visualization(chess_analysis: ChessAnalysis) -> np.n
             )
 
     # Add move arrow if available
-    vis_image = draw_move_arrow(vis_image, chess_analysis)
+    vis_image = draw_move_arrow(vis_image, chess_analysis, verbose)
 
     return vis_image
 
 
-def create_piece_bounding_boxes_visualization(chess_analysis: ChessAnalysis) -> np.ndarray:
+def create_piece_bounding_boxes_visualization(chess_analysis: ChessAnalysis, verbose: bool = False) -> np.ndarray:
     """
     Create visualization showing ONLY bounding boxes for detected pieces on the original image.
 
@@ -198,7 +201,8 @@ def create_piece_bounding_boxes_visualization(chess_analysis: ChessAnalysis) -> 
     white_piece_color = (100, 149, 237)  # CornflowerBlue
     black_piece_color = (220, 20, 60)  # Crimson
 
-    print(f"📦 Drawing {len(chess_pieces)} bounding boxes...")
+    if verbose:
+        print(f"📦 Drawing {len(chess_pieces)} bounding boxes...")
 
     for piece in chess_pieces:
         # Determine color based on piece name
@@ -242,12 +246,14 @@ def create_piece_bounding_boxes_visualization(chess_analysis: ChessAnalysis) -> 
         )
 
     # Add move arrow if available
-    vis_image = draw_move_arrow(vis_image, chess_analysis)
+    vis_image = draw_move_arrow(vis_image, chess_analysis, verbose)
 
     return vis_image
 
 
-def create_piece_centers_visualization(chess_analysis: ChessAnalysis, use_weighted_center: bool = True) -> np.ndarray:
+def create_piece_centers_visualization(
+    chess_analysis: ChessAnalysis, use_weighted_center: bool = True, verbose: bool = False
+) -> np.ndarray:
     """
     Create visualization showing center dots for detected pieces and chess board grid on the original image.
 
@@ -270,7 +276,8 @@ def create_piece_centers_visualization(chess_analysis: ChessAnalysis, use_weight
 
     # Determine which coordinate method to use
     coordinate_method = "weighted_center" if use_weighted_center else "center"
-    print(f"🎯 Drawing piece centers using {coordinate_method} coordinates")
+    if verbose:
+        print(f"🎯 Drawing piece centers using {coordinate_method} coordinates")
 
     # Draw chess board grid with square labels (from corners visualization)
     for square_num, square in chess_analysis.chess_board.chess_squares.items():
@@ -309,7 +316,8 @@ def create_piece_centers_visualization(chess_analysis: ChessAnalysis, use_weight
     white_piece_color = (100, 149, 237)  # CornflowerBlue
     black_piece_color = (220, 20, 60)  # Crimson
 
-    print(f"🎯 Drawing {len(chess_pieces)} center dots...")
+    if verbose:
+        print(f"🎯 Drawing {len(chess_pieces)} center dots...")
 
     for piece in chess_pieces:
         # Determine color based on piece name
@@ -357,7 +365,7 @@ def create_piece_centers_visualization(chess_analysis: ChessAnalysis, use_weight
     return vis_image
 
 
-def draw_move_arrow_matplotlib(ax, chess_analysis: ChessAnalysis) -> None:
+def draw_move_arrow_matplotlib(ax, chess_analysis: ChessAnalysis, verbose: bool = False) -> None:
     """
     Draw an arrow showing the predicted best move on a matplotlib axes.
 
@@ -390,10 +398,10 @@ def draw_move_arrow_matplotlib(ax, chess_analysis: ChessAnalysis) -> None:
 
             # Choose arrow color based on computer color
             if move_analysis.computer_playing_as == "white":
-                arrow_color = "gold"
-                edge_color = "black"
+                arrow_color = "purple"
+                edge_color = "white"
             else:
-                arrow_color = "orange"
+                arrow_color = "purple"
                 edge_color = "white"
 
             # Draw arrow
@@ -403,7 +411,7 @@ def draw_move_arrow_matplotlib(ax, chess_analysis: ChessAnalysis) -> None:
                 arrowstyle="->",
                 mutation_scale=25,
                 linewidth=4,
-                color=arrow_color,
+                facecolor=arrow_color,
                 edgecolor=edge_color,
                 alpha=0.8,
                 zorder=10,
@@ -437,15 +445,17 @@ def draw_move_arrow_matplotlib(ax, chess_analysis: ChessAnalysis) -> None:
                 zorder=11,
             )
 
-            print(
-                f"🏹 Added move arrow to chess diagram: {move_analysis.next_move} ({move_analysis.computer_playing_as})"
-            )
+            if verbose:
+                print(
+                    f"🏹 Added move arrow to chess diagram: {move_analysis.next_move} ({move_analysis.computer_playing_as})"
+                )
 
         except Exception as e:
-            print(f"⚠️  Failed to draw move arrow on diagram: {e}")
+            if verbose:
+                print(f"⚠️  Failed to draw move arrow on diagram: {e}")
 
 
-def create_chess_diagram_png(chess_analysis: ChessAnalysis, output_path: Path) -> np.ndarray:
+def create_chess_diagram_png(chess_analysis: ChessAnalysis, output_path: Path, verbose: bool = False) -> np.ndarray:
     """
     Create PNG chess diagram with classical piece symbols.
 
@@ -588,7 +598,7 @@ def create_chess_diagram_png(chess_analysis: ChessAnalysis, output_path: Path) -
     ax.set_title(title, fontsize=16, weight="bold", pad=20)
 
     # Draw move arrows
-    draw_move_arrow_matplotlib(ax, chess_analysis)
+    draw_move_arrow_matplotlib(ax, chess_analysis, verbose)
 
     # Save the figure
     plt.tight_layout()
@@ -614,6 +624,7 @@ def create_combined_visualization(
     image_name: str,
     skip_piece_detection: bool = False,
     use_weighted_center: bool = True,
+    verbose: bool = False,
 ) -> None:
     """
     Create a combined visualization with all plots as subplots.
@@ -631,19 +642,19 @@ def create_combined_visualization(
         titles = []
 
         # 1. Corners and grid visualization
-        corners_vis = create_corners_and_grid_visualization(chess_analysis)
+        corners_vis = create_corners_and_grid_visualization(chess_analysis, verbose)
         plots_data.append(corners_vis)
         titles.append("Board Corners and Chess Grid")
 
         # 2. Piece bounding boxes visualization (if pieces detected and not skipped)
         if not skip_piece_detection and chess_analysis.chess_board.chess_pieces:
-            pieces_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis)
+            pieces_boxes_vis = create_piece_bounding_boxes_visualization(chess_analysis, verbose)
             plots_data.append(pieces_boxes_vis)
             titles.append("Chess Piece Bounding Boxes")
 
             # 3. Piece centers visualization
             coordinate_method = "weighted_center" if use_weighted_center else "geometric_center"
-            pieces_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center)
+            pieces_centers_vis = create_piece_centers_visualization(chess_analysis, use_weighted_center, verbose)
             plots_data.append(pieces_centers_vis)
             titles.append(f"Chess Piece Centers ({coordinate_method.replace('_', ' ').title()})")
 
@@ -657,7 +668,7 @@ def create_combined_visualization(
                     temp_path = Path(temp_file.name)
 
                 # Generate the chess diagram using the existing function
-                chess_diagram_array = create_chess_diagram_png(chess_analysis, temp_path)
+                chess_diagram_array = create_chess_diagram_png(chess_analysis, temp_path, verbose)
 
                 # Clean up the temporary file
                 temp_path.unlink(missing_ok=True)

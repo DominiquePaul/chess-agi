@@ -1,5 +1,11 @@
 # ChessBoard Corner Detection
 
+> 💡 **Quick Start**: For complete chess board analysis with move prediction, see the main analysis script:
+> ```bash
+> python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white
+> ```
+> Full documentation: [README.md](../../readme.md#chess-board-analysis-with-move-prediction)
+
 This module provides YOLO-based detection of chessboard corners. It inherits from the shared `BaseYOLOModel` class and includes specialized functionality for detecting exactly 4 corners of a chessboard.
 
 ## Features

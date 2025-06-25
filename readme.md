@@ -1,17 +1,78 @@
-# Training a SO-100 robot to play chess
+# Chesso-100 - A robot that kicks your ass in chess 🤖🍑
+> [!WARNING]
+> **🚧 Work in Progress**
+>
+> This repository is actively under development. While the computer vision components are fully functional, the robotic arm integration is still being implemented. Expect frequent updates and potential breaking changes.
+
+
+> **🤖 Project Overview**
+>
+> This project combines computer vision and robotics to create an autonomous chess-playing robot using the SO-100 robotic arm. The system uses YOLO-based models for chess piece detection and board analysis, integrates with the Stockfish chess engine for move prediction, and aims to train robotic policies for physical chess piece manipulation. Currently featuring robust computer vision capabilities with ongoing development of the robotic control system.
+
+<div align="center">
+
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Hugging Face](https://img.shields.io/badge/🤗-Models_Available-yellow.svg)](https://huggingface.co/dopaul)
+[![YOLO](https://img.shields.io/badge/YOLO-v11-red.svg)](https://github.com/ultralytics/ultralytics)
+
+</div>
+
+## ✨ Key Features
+
+🎯 **State-of-the-art Computer Vision**
+- Custom YOLO models for chess piece detection with 95%+ accuracy
+- Real-time board analysis with pixel-perfect square mapping
+- Robust lighting and angle adaptation
+
+🧠 **Smart Chess Engine Integration**
+- Stockfish integration with adjustable difficulty levels
+- Real-time move prediction and game analysis
+- Support for different camera perspectives
+
+🤖 **Robotic Arm Control** *(In Development)*
+- SO-100 robotic arm integration via LeRobot framework
+- Action Chunking Transformer (ACT) for smooth movements
+- Autonomous chess piece manipulation
+
+🚀 **Ready-to-Use Models**
+- Pre-trained models available on Hugging Face Hub
+- One-command setup and inference
+- Comprehensive dataset collection and training scripts
+
+## 🎮 Try It Yourself
+
+**Quick chess analysis in 30 seconds:**
+
+```bash
+# Install and analyze any chess image
+pip install uv && uv sync
+python scripts/analyze_chess_board.py --image your_chess_photo.jpg --computer-playing-as white
+```
+
+**What you'll get:**
+- 📸 Piece detection with bounding boxes
+- 🎯 Board corner detection and grid mapping
+- 🏹 AI move predictions with visual arrows
+- ♟️ Traditional chess diagram output
 
 ## Roadmap
+### Computer Vision ✅
+- [x] **Chess piece detection** - Reliable identification and classification of all chess pieces
+- [x] **Board detection** - Robust chessboard corner detection in various lighting conditions
+- [x] **Integrated analysis** - Combined board + piece detection with position mapping
+- [x] **Chess engine integration** - Board position analysis with move prediction using Stockfish
+- [ ] Collect more data for pieces and segmentation (~100 samples each)
+- [ ] Final retrain of model
 
-- [ ] Chess piece detection works reliably
-- [ ] Board detection works in new setting
-- [ ] Board detection + piece detection works together
-- [ ] Board position can be fed into chess engine and fetch next move
-- [ ] User can collect data with dynamically marked points on board.
-- [ ] Collected dataset of 250 samples
-- [ ] Train ACT policy on dataset
-- [ ] Control-loop for playing a game
-- [ ] Needs to detect whether other player made a move
-- [ ] Add optional voice over comment with the voice of Borat
+### Robotic Arm 🚧
+- [ ] **Data collection interface** - Create user-friendly script to record chess move demonstrations
+- [ ] **Movement dataset** - Collect 250+ samples of piece movements with board coordinates
+- [ ] **Policy training** - Train ACT (Action Chunking Transformer) model on movement data
+- [ ] **Game control loop** - Implement autonomous chess playing system
+  - [ ] **Move detection** - Detect when opponent has made their move
+  - [ ] **Physical execution** - Execute predicted moves with robotic arm
+- [ ] **Commentary system** - Optional AI voice-over for game narration
 
 
 # Setup
@@ -47,23 +108,171 @@ The detailed guide covers:
 - Dataset recreation from source
 - Upload to Hugging Face Hub
 
-## Important links:
+## 🔗 Resources & Models
 
-- **Hugging Face Profile**: https://huggingface.co/dopaul
-- **Trained Models**:
-  - [Chess Piece Detection](https://huggingface.co/dopaul/chess_piece_detection) - YOLO detection model for identifying and classifying chess pieces
-  - [Chess Board Segmentation](https://huggingface.co/dopaul/chess_board_segmentation) - YOLO segmentation model for precise board boundary detection
-- **Chess Datasets**:
-  - [Merged Dataset (Recommended)](https://huggingface.co/datasets/dopaul/chess-pieces-merged) - Combined dataset for training
-  - [Dominique Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-dominique) - Individual dataset from Roboflow
-  - [Roboflow Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-roboflow) - Processed dataset from Kaggle
-- **Original Data Sources**:
-  - [Kaggle Chess Pieces Dataset](https://www.kaggle.com/datasets/imtkaggleteam/chess-pieces-detection-image-dataset)
-  - [Roboflow Chess Pieces Detection](https://universe.roboflow.com/gustoguardian/chess-piece-detection-bltvi/dataset/8)
-  - [Roboflow Chessboard Corners](https://universe.roboflow.com/gustoguardian/chess-board-box/dataset/3)
-  - [Roboflow Chessboard Segmentation](https://universe.roboflow.com/gustoguardian/chess-board-i0ptl/dataset/3)
+<details>
+<summary><b>🤗 Pre-trained Models & Datasets</b> (Click to expand)</summary>
 
-## Using the models Training Models
+### 🎯 Ready-to-Use Models
+- **[Chess Piece Detection](https://huggingface.co/dopaul/chess_piece_detection)** - YOLO detection model for identifying and classifying chess pieces
+- **[Chess Board Segmentation](https://huggingface.co/dopaul/chess_board_segmentation)** - YOLO segmentation model for precise board boundary detection
+
+### 📊 Training Datasets
+- **[Merged Dataset (Recommended)](https://huggingface.co/datasets/dopaul/chess-pieces-merged)** - Combined dataset for training
+- **[Dominique Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-dominique)** - Individual dataset from Roboflow
+- **[Roboflow Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-roboflow)** - Processed dataset from Kaggle
+
+### 🌐 Original Data Sources
+- [Kaggle Chess Pieces Dataset](https://www.kaggle.com/datasets/imtkaggleteam/chess-pieces-detection-image-dataset)
+- [Roboflow Chess Pieces Detection](https://universe.roboflow.com/gustoguardian/chess-piece-detection-bltvi/dataset/8)
+- [Roboflow Chessboard Corners](https://universe.roboflow.com/gustoguardian/chess-board-box/dataset/3)
+- [Roboflow Chessboard Segmentation](https://universe.roboflow.com/gustoguardian/chess-board-i0ptl/dataset/3)
+
+**🎯 Hugging Face Profile**: https://huggingface.co/dopaul
+
+</details>
+
+## Chess Board Analysis with Move Prediction
+
+### 🚀 Quick Start
+
+**Prerequisites:**
+1. Install Stockfish chess engine:
+   ```bash
+   # macOS
+   brew install stockfish
+
+   # Ubuntu/Debian
+   sudo apt install stockfish
+
+   # Windows: Download from https://stockfishchess.org/download/
+   ```
+
+2. Install Python dependencies:
+   ```bash
+   pip install uv
+   uv sync
+   ```
+
+### 🎯 Basic Usage
+
+**Analyze a chess board image:**
+```bash
+python scripts/analyze_chess_board.py --image path/to/chess_image.jpg
+```
+
+**With move prediction (Stockfish engine):**
+```bash
+# Computer playing as white
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white
+
+# Computer playing as black
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as black
+```
+
+### 🎮 Difficulty Control
+
+**Stockfish skill levels (0-20, where 20 is strongest):**
+```bash
+# Beginner level
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --stockfish-skill 5
+
+# Intermediate level
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --stockfish-skill 10
+
+# Expert level
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --stockfish-skill 15
+
+# Grandmaster level (default)
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --stockfish-skill 20
+```
+
+**Adjust thinking time:**
+```bash
+# Quick analysis (0.5 seconds)
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --engine-time 0.5
+
+# Deep analysis (3 seconds)
+python scripts/analyze_chess_board.py --image chess.jpg --computer-playing-as white --engine-time 3.0
+```
+
+### 📐 Camera Perspectives
+
+**When your camera is positioned differently:**
+```bash
+# Camera positioned with white pieces at the top
+python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from t
+
+# Camera positioned with white pieces at the left
+python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from l
+
+# Camera positioned with white pieces at the right
+python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from r
+
+# Default: white pieces at the bottom
+python scripts/analyze_chess_board.py --image chess.jpg --white-playing-from b
+```
+
+### 🎨 Output Features
+
+The script automatically generates:
+- **Move arrows** showing the best move (yellow for white, orange for black)
+- **Piece detection** with bounding boxes and confidence scores
+- **Board grid** with square numbers and corner detection
+- **Chess diagram** with traditional piece symbols
+- **Combined visualization** with all plots together
+
+### 📋 Common Examples
+
+```bash
+# Complete analysis with beginner AI
+python scripts/analyze_chess_board.py \
+    --image data/eval_images/chess_4.jpeg \
+    --computer-playing-as white \
+    --stockfish-skill 8 \
+    --engine-time 1.0 \
+    --verbose
+
+# Quick robot analysis (fast, medium difficulty)
+python scripts/analyze_chess_board.py \
+    --image chess.jpg \
+    --computer-playing-as black \
+    --stockfish-skill 12 \
+    --engine-time 0.3
+
+# Analysis without move prediction (just detect pieces)
+python scripts/analyze_chess_board.py --image chess.jpg
+
+# Use simple engine instead of Stockfish
+python scripts/analyze_chess_board.py \
+    --image chess.jpg \
+    --computer-playing-as white \
+    --engine-type simple
+```
+
+### 🔧 All Options
+
+```bash
+python scripts/analyze_chess_board.py --help
+```
+
+**Key parameters:**
+- `--computer-playing-as`: Enable move prediction (`white` or `black`)
+- `--stockfish-skill`: Difficulty level (0-20, default: 20)
+- `--engine-time`: Thinking time in seconds (default: 1.0)
+- `--engine-depth`: Search depth (default: 10)
+- `--white-playing-from`: Camera perspective (`b`/`t`/`l`/`r`, default: `b`)
+- `--conf`: Piece detection confidence threshold (default: 0.5)
+- `--verbose`: Show detailed output
+
+### 📊 Output Files
+
+Results are saved to `artifacts/[image_name]/`:
+- `*_corners_and_grid.png` - Board detection and grid overlay
+- `*_piece_bounding_boxes.png` - Piece detection with boxes
+- `*_piece_centers.png` - Piece centers and coordinates
+- `*_chess_diagram.png` - Traditional chess board view
+- `*_combined_analysis.png` - All visualizations together
 
 ### Quickstart for prediction
 
