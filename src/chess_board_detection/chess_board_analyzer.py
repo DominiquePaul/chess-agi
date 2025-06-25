@@ -295,8 +295,8 @@ class ChessBoardAnalyzer:
             ValueError: If input_image is not a valid file path or numpy array, or if image cannot be loaded
 
         Notes:
-            - For file paths: loads image using cv2.imread
-            - For numpy arrays: assumes RGB format and converts to BGR for OpenCV compatibility
+            - For file paths: loads image using cv2.imread (returns BGR)
+            - For numpy arrays: assumes BGR format (standard OpenCV format from cameras)
             - Creates a copy of the input array to avoid modifying the original
             - temp_files (list[str]): list of temporary file paths that need cleanup
 
@@ -312,11 +312,9 @@ class ChessBoardAnalyzer:
                 raise ValueError(f"Could not load image from path: {image_path_str}")
 
         elif isinstance(input_image, np.ndarray):
-            # Input is a numpy array
+            # Input is a numpy array - assume BGR format (standard from OpenCV cameras)
             original_image = input_image.copy()
-            if len(original_image.shape) == 3 and original_image.shape[2] == 3:
-                # Assume RGB, convert to BGR for OpenCV compatibility
-                original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR)
+            # No color conversion needed - OpenCV cameras return BGR format
         else:
             raise ValueError("Input must be either a file path (string/Path) or numpy array")
         return original_image

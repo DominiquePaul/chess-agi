@@ -2,6 +2,7 @@
 artifacts/**
 artifacts/
 *.pt
+*.mp4
 
 # Editors
 .vscode/
