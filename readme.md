@@ -56,6 +56,23 @@ python scripts/analyze_chess_board.py --image your_chess_photo.jpg --computer-pl
 - 🏹 AI move predictions with visual arrows
 - ♟️ Traditional chess diagram output
 
+**Live chess analysis streaming:**
+
+```bash
+# Stream live analysis from your webcam
+python scripts/stream_chess_analysis.py --camera 0 --computer-playing-as white
+
+# With recording and custom settings
+python scripts/stream_chess_analysis.py --camera 0 --computer-playing-as white --record --fps 2 --verbose
+```
+
+**Live streaming features:**
+- 🎥 Real-time webcam chess analysis
+- 📹 Optional recording to video files
+- 🎯 Live move predictions with visual overlays
+- ⚡ Adjustable analysis frame rate
+- 🎮 Interactive controls (press 'q' to quit, 'r' to force re-analysis)
+
 ## Roadmap
 ### Computer Vision ✅
 - [x] **Chess piece detection** - Reliable identification and classification of all chess pieces
