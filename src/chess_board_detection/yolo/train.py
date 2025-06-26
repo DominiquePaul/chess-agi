@@ -5,8 +5,13 @@ Training script for ChessBoardModel - Corner Detection
 This script trains a YOLO model to detect the 4 corners of a chessboard.
 
 Usage:
-    # Basic training with default settings
+    # Basic training with default settings (YOLO11s COCO pretrained)
     python src/chess_board_detection/yolo/train.py --epochs 100
+
+    # Choose different COCO-pretrained model size
+    python src/chess_board_detection/yolo/train.py \
+        --pretrained-model yolo11m.pt \
+        --epochs 100
 
     # Run from project root as module
     python -m src.chess_board_detection.yolo.train
@@ -16,7 +21,8 @@ Usage:
 
     # Complete example with all options and HuggingFace upload
     python src/chess_board_detection/yolo/train.py \
-        --data data/chessboard_corners/data.yaml \
+        --data data/chessboard_corners/chess-board-box-3/data.yaml \
+        --pretrained-model yolo11l.pt \
         --models-folder models/chess_board_detection \
         --name my_corner_training \
         --epochs 100 \
@@ -35,6 +41,13 @@ Usage:
         --verbose \
         --upload-hf \
         --hf-model-name username/chessboard-corner-detector
+
+Available COCO-pretrained models:
+    - yolo11n.pt (nano, ~2.6MB, fastest)
+    - yolo11s.pt (small, ~9.4MB, fast, recommended)
+    - yolo11m.pt (medium, ~20.1MB, balanced)
+    - yolo11l.pt (large, ~25.3MB, accurate)
+    - yolo11x.pt (extra large, ~56.9MB, most accurate)
 """
 
 import argparse
@@ -61,7 +74,7 @@ def parse_args():
     parser.add_argument(
         "--data",
         type=str,
-        default="data/chessboard_corners/data.yaml",
+        default="data/chessboard_corners/chess-board-box-3/data.yaml",
         help="Path to YOLO dataset YAML file containing train/val/test splits and class names",
     )
     parser.add_argument(
@@ -75,6 +88,13 @@ def parse_args():
         type=str,
         default="corner_detection_training",
         help="Name for this training run (creates subfolder in models-folder)",
+    )
+    parser.add_argument(
+        "--pretrained-model",
+        type=str,
+        default="yolo11s.pt",
+        choices=["yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt"],
+        help="COCO-pretrained YOLO11 model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)",
     )
 
     # ========================================
@@ -366,7 +386,7 @@ def main():
     # Model Training
     # ========================================
     print("🚀 Initializing ChessBoardModel...")
-    model = ChessBoardModel()
+    model = ChessBoardModel(pretrained_checkpoint=args.pretrained_model)
 
     print("🎯 Starting training process...")
     try:

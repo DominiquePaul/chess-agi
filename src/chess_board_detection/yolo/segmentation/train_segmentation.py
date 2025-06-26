@@ -217,7 +217,7 @@ def main():
     print(f"🔄 Flips: horizontal={args.fliplr}, vertical={args.flipud}")
     print(f"🧩 Mosaic: {args.mosaic}")
     print(f"📊 Plots: {'Disabled' if args.no_plots else 'Enabled'}")
-    print("🎯 Model Type: YOLOv8 Segmentation (polygon learning)")
+    print("🎯 Model Type: YOLO11 Segmentation (polygon learning)")
     print("=" * 70)
 
     # ========================================
@@ -326,12 +326,12 @@ def main():
     print("   🔹 Better for perspective correction and board extraction")
 
     print("\n💡 COCO Pretrained Models Available:")
-    print("   🔹 yolov8n-seg.pt (nano, ~6MB, fastest)")
-    print("   🔹 yolov8s-seg.pt (small, ~22MB, fast)")
-    print("   🔹 yolov8m-seg.pt (medium, ~52MB, balanced)")
-    print("   🔹 yolov8l-seg.pt (large, ~104MB, accurate)")
-    print("   🔹 yolov8x-seg.pt (extra large, ~136MB, most accurate)")
-    print("   Use: --pretrained-model yolov8m-seg.pt")
+    print("   🔹 yolo11n-seg.pt (nano, ~6MB, fastest)")
+    print("   🔹 yolo11s-seg.pt (small, ~22MB, fast, recommended)")
+    print("   🔹 yolo11m-seg.pt (medium, ~52MB, balanced)")
+    print("   🔹 yolo11l-seg.pt (large, ~104MB, accurate)")
+    print("   🔹 yolo11x-seg.pt (extra large, ~136MB, most accurate)")
+    print("   Use: --pretrained-model yolo11m-seg.pt")
 
     print("\n💡 More CLI options:")
     print("   • Add --help to any command for detailed options")

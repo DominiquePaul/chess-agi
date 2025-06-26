@@ -20,8 +20,13 @@ from src.base_model import BaseYOLOModel
 class ChessBoardModel(BaseYOLOModel):
     """Model for detecting chessboard corners using YOLO."""
 
-    def __init__(self, model_path: Path | None = None, device: torch.device | None = None):
-        super().__init__(model_path, device)
+    def __init__(
+        self,
+        model_path: Path | None = None,
+        device: torch.device | None = None,
+        pretrained_checkpoint: str = "yolo11s.pt",
+    ):
+        super().__init__(model_path, device, pretrained_checkpoint)
         self.expected_corners = 4
 
     def predict_corners(self, img_path, conf=0.25):

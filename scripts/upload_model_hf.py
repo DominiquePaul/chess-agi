@@ -488,7 +488,7 @@ python src/chess_board_detection/yolo/segmentation/train_segmentation.py \\
     --data data/chessboard_segmentation/chess-board-3/data.yaml \\
     --epochs 100 \\
     --batch 16 \\
-    --pretrained-model yolov8s-seg.pt
+    --pretrained-model yolo11s-seg.pt
 ```
 """
 

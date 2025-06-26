@@ -505,7 +505,7 @@ def detect_chess_pieces(image_path_str, model_path, conf=0.5):
     Returns:
         tuple: (chess_pieces_predictions, image_with_detections)
     """
-    # YOLOv8 model
+    # YOLO11 model
     model = ChessModel(Path(model_path))
     # Lower confidence threshold to detect more pieces
     chess_pieces_preds = model.predict(image_path_str, conf=conf)

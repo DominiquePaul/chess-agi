@@ -282,7 +282,7 @@ This is a YOLO model trained to detect chess pieces on a chessboard.
 
 ## Model Details
 
-- **Model Type**: YOLOv8/YOLOv11 Object Detection
+- **Model Type**: YOLO11 Object Detection
 - **Task**: Chess piece detection and classification
 - **Framework**: Ultralytics YOLO
 - **Repository**: {repo_id}

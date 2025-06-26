@@ -276,7 +276,7 @@ python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
     --data data/chessboard_segmentation/chess-board-i0ptl-3/data.yaml \
     --epochs 100 \
     --batch 16 \
-    --pretrained-model yolov8m-seg.pt \
+    --pretrained-model yolo11m-seg.pt \
     --name polygon_detection_v1
 
 # Test segmentation model

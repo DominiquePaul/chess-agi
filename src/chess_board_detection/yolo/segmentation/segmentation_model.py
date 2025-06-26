@@ -216,14 +216,14 @@ class ChessBoardSegmentationModel(BaseYOLOModel):
 
                 # Get the polygon coordinates from the mask
                 if hasattr(mask, "xy") and len(mask.xy) > 0:
-                    # YOLOv8 provides polygon coordinates directly
+                    # YOLO11 provides polygon coordinates directly
                     polygon_coords = mask.xy[0]  # First contour
 
                     # Convert to list of coordinate dictionaries
                     coordinates = []
                     for point in polygon_coords:
                         # These coordinates should already be in original image space
-                        # YOLOv8 typically returns coordinates in original image dimensions
+                        # YOLO11 typically returns coordinates in original image dimensions
                         coordinates.append({"x": float(point[0]), "y": float(point[1])})
 
                     # Get confidence if available
