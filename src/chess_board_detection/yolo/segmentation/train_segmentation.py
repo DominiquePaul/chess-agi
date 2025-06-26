@@ -6,26 +6,26 @@ This script trains a YOLO segmentation model to learn the exact polygon boundari
 of chessboards from polygon annotation data.
 
 Usage:
-    # Basic training with default settings (YOLOv8n-seg COCO pretrained)
+    # Basic training with default settings (YOLO11s-seg COCO pretrained)
     python src/chess_board_detection/yolo/segmentation/train_segmentation.py --epochs 100
 
     # Choose different COCO-pretrained model size
     python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
-        --pretrained-model yolov8s-seg.pt \
+        --pretrained-model yolo11m-seg.pt \
         --epochs 100
 
     # Custom training parameters
     python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
-        --data data/chessboard_segmentation/chess-board-3/data.yaml \
-        --pretrained-model yolov8s-seg.pt \
+        --data data/chessboard_segmentation/chess-board-4/data.yaml \
+        --pretrained-model yolo11s-seg.pt \
         --epochs 100 \
         --batch 16 \
         --imgsz 640
 
     # Complete example with all options
     python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
-        --data data/chessboard_segmentation/chess-board-3/data.yaml \
-        --pretrained-model yolov8l-seg.pt \
+        --data data/chessboard_segmentation/chess-board-4/data.yaml \
+        --pretrained-model yolo11l-seg.pt \
         --models-folder artifacts/models/chess_board_segmentation \
         --name polygon_segmentation_training \
         --epochs 100 \
@@ -42,11 +42,11 @@ Usage:
         --verbose
 
 Available COCO-pretrained models:
-    - yolov8n-seg.pt (nano, ~6MB, fastest)
-    - yolov8s-seg.pt (small, ~22MB, fast)
-    - yolov8m-seg.pt (medium, ~52MB, balanced)
-    - yolov8l-seg.pt (large, ~104MB, accurate)
-    - yolov8x-seg.pt (extra large, ~136MB, most accurate)
+    - yolo11n-seg.pt (nano, ~6MB, fastest)
+    - yolo11s-seg.pt (small, ~22MB, fast, recommended)
+    - yolo11m-seg.pt (medium, ~52MB, balanced)
+    - yolo11l-seg.pt (large, ~104MB, accurate)
+    - yolo11x-seg.pt (extra large, ~136MB, most accurate)
 """
 
 import argparse
@@ -75,21 +75,21 @@ def parse_args():
     parser.add_argument(
         "--data",
         type=str,
-        default="data/chessboard_segmentation/chess-board-3/data.yaml",
+        default="data/chessboard_segmentation/chess-board-4/data.yaml",
         help="Path to YOLO dataset YAML file containing polygon annotations",
     )
     parser.add_argument(
         "--pretrained-model",
         type=str,
-        default="yolov8n-seg.pt",
+        default="yolo11s-seg.pt",
         choices=[
-            "yolov8n-seg.pt",
-            "yolov8s-seg.pt",
-            "yolov8m-seg.pt",
-            "yolov8l-seg.pt",
-            "yolov8x-seg.pt",
+            "yolo11n-seg.pt",
+            "yolo11s-seg.pt",
+            "yolo11m-seg.pt",
+            "yolo11l-seg.pt",
+            "yolo11x-seg.pt",
         ],
-        help="COCO-pretrained model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)",
+        help="COCO-pretrained YOLO11 model to start training from (n=nano, s=small, m=medium, l=large, x=extra large)",
     )
     parser.add_argument(
         "--models-folder",

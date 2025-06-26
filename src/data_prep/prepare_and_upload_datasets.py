@@ -87,7 +87,7 @@ def download_dominique_chess_pieces():
     """Download Dominique's chess pieces dataset from Roboflow"""
     print("\n📦 Downloading Chess Pieces Dataset (Dominique)...")
     print("   📊 Dataset: Chess piece detection with 12 classes")
-    print("   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/8)")
+    print("   📍 Source: Roboflow (gustoguardian/chess-piece-detection-bltvi/10)")
     print("   🎯 Purpose: Training chess piece detection models (enhanced)")
 
     try:
@@ -98,7 +98,7 @@ def download_dominique_chess_pieces():
             "yolov8",
             "-l",
             str(DATA_FOLDER_PATH / "chess_pieces_dominique"),
-            "gustoguardian/chess-piece-detection-bltvi/8",
+            "gustoguardian/chess-piece-detection-bltvi/10",
         ]
 
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -156,7 +156,7 @@ def download_chessboard_segmentation_dominique():
     """Download chessboard segmentation dataset from Roboflow (Dominique)"""
     print("\n📦 Downloading Chessboard Segmentation Dataset (Dominique)...")
     print("   📊 Dataset: Chessboard segmentation with polygon boundaries")
-    print("   📍 Source: Roboflow (gustoguardian/chess-board-i0ptl/3)")
+    print("   📍 Source: Roboflow (gustoguardian/chess-board-i0ptl/4)")
     print("   🎯 Purpose: Training chessboard segmentation models for precise polygon detection")
 
     try:
@@ -169,7 +169,7 @@ def download_chessboard_segmentation_dominique():
         args = Namespace(
             data_dir=str(DATA_FOLDER_PATH / "chessboard_segmentation"),
             project="gustoguardian/chess-board-i0ptl",
-            version=3,
+            version=4,
             format="yolov8",
             verbose=False,
         )

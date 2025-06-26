@@ -141,9 +141,9 @@ The detailed guide covers:
 
 ### 🌐 Original Data Sources
 - [Kaggle Chess Pieces Dataset](https://www.kaggle.com/datasets/imtkaggleteam/chess-pieces-detection-image-dataset)
-- [Roboflow Chess Pieces Detection](https://universe.roboflow.com/gustoguardian/chess-piece-detection-bltvi/dataset/8)
+- [Roboflow Chess Pieces Detection](https://universe.roboflow.com/gustoguardian/chess-piece-detection-bltvi/dataset/10)
 - [Roboflow Chessboard Corners](https://universe.roboflow.com/gustoguardian/chess-board-box/dataset/3)
-- [Roboflow Chessboard Segmentation](https://universe.roboflow.com/gustoguardian/chess-board-i0ptl/dataset/3)
+- [Roboflow Chessboard Segmentation](https://universe.roboflow.com/gustoguardian/chess-board-i0ptl/dataset/4)
 
 **🎯 Hugging Face Profile**: https://huggingface.co/dopaul
 
@@ -398,7 +398,7 @@ For more precise chessboard boundary detection, we can use segmentation to get e
 export ROBOFLOW_API_KEY=your_api_key_here
 python src/chess_board_detection/download_data.py \
     --project gustoguardian/chess-board-i0ptl \
-    --version 3 \
+    --version 4 \
     --data-dir data/chessboard_segmentation
 
 # Train segmentation model with default settings (YOLO11n-seg)

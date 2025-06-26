@@ -210,7 +210,7 @@ if __name__ == "__main__":
     #     batch=16,
     #     imgsz=640,
     #     project=MODELS_FOLDER / CHESS_PIECE_MODEL_NAME,
-    #     name="training_v3_yolov8s"
+    #     name="training_v3_yolo11s"
     # )
 
     # Load old model for comparison (if it exists)
