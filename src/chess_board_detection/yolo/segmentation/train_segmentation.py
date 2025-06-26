@@ -231,7 +231,7 @@ def auto_download_hf_dataset(hf_repo: str, force_download: bool = False) -> Path
         print(f"📥 Auto-downloading dataset from HuggingFace: {hf_repo}")
         print(f"📁 Saving to: {local_dataset_path}")
 
-        success = download_dataset(hf_repo, local_name, data_path, convert_to_yolo=True)
+        success = download_dataset(hf_repo, local_name, data_path, convert_to_yolo=True, task_type="segmentation")
 
         if success and data_yaml_path.exists():
             print(f"✅ Successfully downloaded and converted dataset to: {data_yaml_path}")
