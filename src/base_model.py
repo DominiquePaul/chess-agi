@@ -41,7 +41,7 @@ class BaseYOLOModel:
         self.model_path = Path(model_path) if isinstance(model_path, str) else model_path
         self.device = device or get_best_torch_device()
         self.pretrained_checkpoint = pretrained_checkpoint
-        # self.loaded_from_cache = None
+        self.loaded_from_cache = False
 
         # Handle HuggingFace Hub models
         if isinstance(model_path, str) and "/" in model_path and not Path(model_path).exists():
