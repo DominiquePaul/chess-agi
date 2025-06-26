@@ -22,7 +22,7 @@ Usage:
         --batch 16 \
         --imgsz 640
 
-    # Complete example with all options
+    # Complete example with all options (including HF upload)
     python src/chess_board_detection/yolo/segmentation/train_segmentation.py \
         --data data/chessboard_segmentation/chess-board-4/data.yaml \
         --pretrained-model yolo11l-seg.pt \
@@ -39,6 +39,7 @@ Usage:
         --scale 0.3 \
         --fliplr 0.5 \
         --mosaic 0.9 \
+        --hf-repo-id "username/chess-board-segmentation" \
         --verbose
 
 Available COCO-pretrained models:
@@ -152,6 +153,12 @@ def parse_args():
         "--verbose",
         action="store_true",
         help="Show verbose output including full error tracebacks",
+    )
+    parser.add_argument(
+        "--hf-repo-id",
+        type=str,
+        default=None,
+        help="Hugging Face repository ID for model upload (e.g., 'username/chess-board-segmentation'). If specified, model will be automatically pushed to HF Hub after training.",
     )
 
     return parser.parse_args()
@@ -283,8 +290,25 @@ def main():
 
             # Load the trained model for validation
             print("🔍 Loading trained segmentation model for validation...")
-            _trained_model = ChessBoardSegmentationModel(model_path=best_model_path)
+            trained_model = ChessBoardSegmentationModel(model_path=best_model_path)
             print("✅ Segmentation model loaded successfully!")
+
+            # ========================================
+            # Optional: Push to Hugging Face
+            # ========================================
+            if args.hf_repo_id:
+                print(f"🤗 Pushing model to Hugging Face Hub: {args.hf_repo_id}")
+                try:
+                    trained_model.push_to_huggingface(
+                        repo_id=args.hf_repo_id,
+                        commit_message=f"Upload chess board segmentation model ({args.pretrained_model} -> {args.epochs} epochs)",
+                        private=False,
+                    )
+                    print("✅ Model successfully pushed to Hugging Face!")
+                except Exception as e:
+                    print(f"⚠️  Failed to push to Hugging Face: {e}")
+                    if args.verbose:
+                        raise
 
         else:
             print(f"⚠️  Warning: Best model not found at expected path: {best_model_path}")
@@ -335,6 +359,7 @@ def main():
 
     print("\n💡 More CLI options:")
     print("   • Add --help to any command for detailed options")
+    print("   • Use --hf-repo-id username/model-name to upload model to Hugging Face")
     print("   • Compare with detection model for different use cases")
     print("=" * 70)
 
