@@ -51,6 +51,7 @@ Available COCO-pretrained models:
 """
 
 import argparse
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -76,8 +77,25 @@ def parse_args():
     parser.add_argument(
         "--data",
         type=str,
-        default="data/chessboard_segmentation/chess-board-4/data.yaml",
-        help="Path to YOLO dataset YAML file containing polygon annotations",
+        default=None,
+        help="Path to YOLO dataset YAML file containing polygon annotations. If not provided, uses DATA_FOLDER_PATH env var + chessboard_segmentation/data.yaml, or auto-downloads from HF",
+    )
+    parser.add_argument(
+        "--hf-dataset",
+        type=str,
+        default="dopaul/chess-board-segmentation",
+        help="HuggingFace dataset to use if local data not found (default: dopaul/chess-board-segmentation)",
+    )
+    parser.add_argument(
+        "--auto-download-hf",
+        action="store_true",
+        default=True,
+        help="Automatically download from HuggingFace if local dataset not found (default: True)",
+    )
+    parser.add_argument(
+        "--force-download-hf",
+        action="store_true",
+        help="Force re-download from HuggingFace even if local dataset exists",
     )
     parser.add_argument(
         "--pretrained-model",
@@ -164,13 +182,130 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_default_data_path():
+    """Get the default data path based on environment variable."""
+    data_folder = os.environ.get("DATA_FOLDER_PATH")
+    if data_folder:
+        return Path(data_folder) / "chessboard_segmentation" / "data.yaml"
+    return None
+
+
+def auto_download_hf_dataset(hf_repo: str, force_download: bool = False) -> Path | None:
+    """
+    Auto-download chess board segmentation dataset from HuggingFace if not available locally.
+
+    Args:
+        hf_repo: HuggingFace repository name (e.g., "dopaul/chess-board-segmentation-yolo")
+        force_download: Force re-download even if local dataset exists
+
+    Returns:
+        Path to data.yaml file if successful, None if failed
+    """
+    try:
+        # Import here to avoid dependency issues if not needed
+        from src.data_prep.download_from_hf import DATASET_LOCAL_NAMES, download_dataset
+
+        # Get local path
+        data_folder = os.environ.get("DATA_FOLDER_PATH")
+        if not data_folder:
+            print("❌ DATA_FOLDER_PATH environment variable not set")
+            return None
+
+        data_path = Path(data_folder)
+
+        # Determine local dataset name
+        local_name = DATASET_LOCAL_NAMES.get(hf_repo)
+        if not local_name:
+            # Create local name from repo name
+            local_name = hf_repo.split("/")[-1].replace("-", "_")
+
+        local_dataset_path = data_path / local_name
+        data_yaml_path = local_dataset_path / "data.yaml"
+
+        # Check if dataset already exists
+        if data_yaml_path.exists() and not force_download:
+            print(f"✅ Found existing dataset at: {data_yaml_path}")
+            return data_yaml_path
+
+        # Download dataset
+        print(f"📥 Auto-downloading dataset from HuggingFace: {hf_repo}")
+        print(f"📁 Saving to: {local_dataset_path}")
+
+        success = download_dataset(hf_repo, local_name, data_path, convert_to_yolo=True)
+
+        if success and data_yaml_path.exists():
+            print(f"✅ Successfully downloaded and converted dataset to: {data_yaml_path}")
+            return data_yaml_path
+        else:
+            print(f"❌ Failed to download dataset from {hf_repo}")
+            return None
+
+    except ImportError:
+        print("❌ Cannot import HuggingFace download functionality")
+        print("💡 Please ensure 'datasets' and 'huggingface_hub' are installed")
+        return None
+    except Exception as e:
+        print(f"❌ Error downloading dataset: {e}")
+        return None
+
+
 def validate_args(args):
     """Validate command line arguments and show helpful error messages."""
+
+    # Handle force download first
+    if args.force_download_hf:
+        print(f"🔄 Force downloading dataset from HuggingFace: {args.hf_dataset}")
+        downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=True)
+        if downloaded_path:
+            args.data = str(downloaded_path)
+            print(f"✅ Using force-downloaded dataset: {args.data}")
+            return True
+        else:
+            print("❌ Failed to force download dataset from HuggingFace")
+            return False
+
+    # Handle default data path
+    if args.data is None:
+        default_data = get_default_data_path()
+        if default_data and default_data.exists():
+            args.data = str(default_data)
+            print(f"🔍 Using default dataset: {args.data}")
+        else:
+            # Try auto-download from HuggingFace
+            if args.auto_download_hf:
+                print(f"🔍 Local dataset not found, attempting auto-download from HuggingFace: {args.hf_dataset}")
+                downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=False)
+                if downloaded_path:
+                    args.data = str(downloaded_path)
+                    print(f"✅ Using auto-downloaded dataset: {args.data}")
+                    return True
+
+            print("❌ Error: No dataset specified and default not found!")
+            if not os.environ.get("DATA_FOLDER_PATH"):
+                print("💡 Please set DATA_FOLDER_PATH environment variable or use --data")
+            else:
+                print(f"💡 Please create the default dataset at: {default_data}")
+                print("💡 Or specify a different dataset with --data")
+                print(f"💡 Or use --auto-download-hf to download from HuggingFace: {args.hf_dataset}")
+            return False
+
     # Check if dataset file exists
     data_path = Path(args.data)
     if not data_path.exists():
+        # Try auto-download from HuggingFace if enabled
+        if args.auto_download_hf:
+            print(
+                f"🔍 Dataset file '{data_path}' not found, attempting auto-download from HuggingFace: {args.hf_dataset}"
+            )
+            downloaded_path = auto_download_hf_dataset(args.hf_dataset, force_download=False)
+            if downloaded_path:
+                args.data = str(downloaded_path)
+                print(f"✅ Using auto-downloaded dataset: {args.data}")
+                return True
+
         print(f"❌ Error: Dataset file '{data_path}' does not exist!")
         print("💡 Please create the dataset or specify a different path with --data")
+        print(f"💡 Or use --auto-download-hf to download from HuggingFace: {args.hf_dataset}")
         return False
 
     return True

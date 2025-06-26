@@ -38,8 +38,14 @@ class ChessDatasetUploader:
 
         return data_config
 
-    def _prepare_dataset_for_hf(self, dataset_path: Path, split: str) -> list[dict]:
-        """Prepare a single split for Hugging Face format"""
+    def _prepare_dataset_for_hf(self, dataset_path: Path, split: str, task_type: str = "detection") -> list[dict]:
+        """Prepare a single split for Hugging Face format
+
+        Args:
+            dataset_path: Path to the dataset
+            split: Split name (train/valid/test)
+            task_type: Either 'detection' for bounding boxes or 'segmentation' for polygons
+        """
         images_dir = dataset_path / split / "images"
         labels_dir = dataset_path / split / "labels"
 
@@ -64,20 +70,36 @@ class ChessDatasetUploader:
                             parts = line.strip().split()
                             if len(parts) >= 5:
                                 class_id = int(parts[0])
-                                x_center = float(parts[1])
-                                y_center = float(parts[2])
-                                width = float(parts[3])
-                                height = float(parts[4])
 
-                                annotations.append(
-                                    {
-                                        "class_id": class_id,
-                                        "x_center": x_center,
-                                        "y_center": y_center,
-                                        "width": width,
-                                        "height": height,
-                                    }
-                                )
+                                if task_type == "detection" and len(parts) == 5:
+                                    # Detection format: class_id x_center y_center width height
+                                    x_center = float(parts[1])
+                                    y_center = float(parts[2])
+                                    width = float(parts[3])
+                                    height = float(parts[4])
+
+                                    annotations.append(
+                                        {
+                                            "class_id": class_id,
+                                            "x_center": x_center,
+                                            "y_center": y_center,
+                                            "width": width,
+                                            "height": height,
+                                        }
+                                    )
+                                elif task_type == "segmentation" and len(parts) > 5:
+                                    # Segmentation format: class_id x1 y1 x2 y2 x3 y3 ...
+                                    # Convert polygon coordinates to list of floats
+                                    polygon_coords = [float(coord) for coord in parts[1:]]
+
+                                    # Ensure even number of coordinates (x,y pairs)
+                                    if len(polygon_coords) % 2 == 0:
+                                        annotations.append(
+                                            {
+                                                "class_id": class_id,
+                                                "polygon": polygon_coords,
+                                            }
+                                        )
 
                 data.append(
                     {
@@ -91,8 +113,13 @@ class ChessDatasetUploader:
 
         return data
 
-    def create_hf_dataset(self, dataset_path: Path) -> DatasetDict:
-        """Create a Hugging Face Dataset from YOLOv8 format"""
+    def create_hf_dataset(self, dataset_path: Path, task_type: str = "detection") -> DatasetDict:
+        """Create a Hugging Face Dataset from YOLOv8 format
+
+        Args:
+            dataset_path: Path to the dataset
+            task_type: Either 'detection' for bounding boxes or 'segmentation' for polygons
+        """
         _data_config = self._load_dataset_info(dataset_path)
 
         # Prepare data for each split
@@ -104,45 +131,70 @@ class ChessDatasetUploader:
 
             split_data = []
             for variant in split_variants:
-                split_data = self._prepare_dataset_for_hf(dataset_path, variant)
+                split_data = self._prepare_dataset_for_hf(dataset_path, variant, task_type)
                 if split_data:
                     break
 
             if split_data:
-                # Define features
-                features = Features(
-                    {
-                        "image": Image(),
-                        "image_id": Value("string"),
-                        "annotations": Sequence(
-                            {
-                                "class_id": Value("int32"),
-                                "x_center": Value("float32"),
-                                "y_center": Value("float32"),
-                                "width": Value("float32"),
-                                "height": Value("float32"),
-                            }
-                        ),
-                        "image_width": Value("int32"),
-                        "image_height": Value("int32"),
-                    }
-                )
+                # Define features based on task type
+                if task_type == "detection":
+                    features = Features(
+                        {
+                            "image": Image(),
+                            "image_id": Value("string"),
+                            "annotations": Sequence(
+                                {
+                                    "class_id": Value("int32"),
+                                    "x_center": Value("float32"),
+                                    "y_center": Value("float32"),
+                                    "width": Value("float32"),
+                                    "height": Value("float32"),
+                                }
+                            ),
+                            "image_width": Value("int32"),
+                            "image_height": Value("int32"),
+                        }
+                    )
+                else:  # segmentation
+                    features = Features(
+                        {
+                            "image": Image(),
+                            "image_id": Value("string"),
+                            "annotations": Sequence(
+                                {
+                                    "class_id": Value("int32"),
+                                    "polygon": Sequence(Value("float32")),
+                                }
+                            ),
+                            "image_width": Value("int32"),
+                            "image_height": Value("int32"),
+                        }
+                    )
 
                 dataset_dict[split] = Dataset.from_list(split_data, features=features)
 
         return DatasetDict(dataset_dict)
 
-    def upload_individual_dataset(self, dataset_name: str, repo_name: str, description: str | None = None):
-        """Upload a single dataset to Hugging Face Hub"""
+    def upload_individual_dataset(
+        self, dataset_name: str, repo_name: str, description: str | None = None, task_type: str = "detection"
+    ):
+        """Upload a single dataset to Hugging Face Hub
+
+        Args:
+            dataset_name: Name of the local dataset folder
+            repo_name: Name for the HuggingFace repository
+            description: Optional description for the dataset
+            task_type: Either 'detection' for bounding boxes or 'segmentation' for polygons
+        """
         dataset_path = self.data_folder_path / dataset_name
 
         if not dataset_path.exists():
             raise FileNotFoundError(f"Dataset {dataset_name} not found at {dataset_path}")
 
-        print(f"Processing dataset: {dataset_name}")
+        print(f"Processing {task_type} dataset: {dataset_name}")
 
         # Create HF dataset
-        hf_dataset = self.create_hf_dataset(dataset_path)
+        hf_dataset = self.create_hf_dataset(dataset_path, task_type)
 
         # Create repository
         repo_id = f"{self.hf_username}/{repo_name}"
@@ -164,9 +216,18 @@ class ChessDatasetUploader:
         except Exception as e:
             print(f"Error uploading dataset: {e}")
 
-    def merge_and_upload_datasets(self, dataset_names: list[str], repo_name: str, description: str | None = None):
-        """Merge multiple datasets and upload to Hugging Face Hub"""
-        print(f"Merging datasets: {dataset_names}")
+    def merge_and_upload_datasets(
+        self, dataset_names: list[str], repo_name: str, description: str | None = None, task_type: str = "detection"
+    ):
+        """Merge multiple datasets and upload to Hugging Face Hub
+
+        Args:
+            dataset_names: List of local dataset folder names to merge
+            repo_name: Name for the HuggingFace repository
+            description: Optional description for the merged dataset
+            task_type: Either 'detection' for bounding boxes or 'segmentation' for polygons
+        """
+        print(f"Merging {task_type} datasets: {dataset_names}")
 
         all_datasets = {}
 
@@ -177,7 +238,7 @@ class ChessDatasetUploader:
                 print(f"Warning: Dataset {dataset_name} not found, skipping")
                 continue
 
-            hf_dataset = self.create_hf_dataset(dataset_path)
+            hf_dataset = self.create_hf_dataset(dataset_path, task_type)
             all_datasets[dataset_name] = hf_dataset
 
         if not all_datasets:

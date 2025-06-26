@@ -104,12 +104,30 @@ uv sync
 ### Quick Start (Recommended)
 
 ```bash
-# Download ready-to-use datasets from Hugging Face
-python src/data_prep/download_from_hf.py --dataset merged
+# Download both detection and segmentation datasets
+python scripts/download_datasets.py --both
 
-# Or download all datasets at once
-python src/data_prep/prepare_and_upload_datasets.py
+# Download only detection datasets (chess pieces)
+python scripts/download_datasets.py --detection
+
+# Download only segmentation datasets (chess board)
+python scripts/download_datasets.py --segmentation
 ```
+
+### 📤 Upload Datasets to HuggingFace
+
+```bash
+# Upload both detection and segmentation datasets to HuggingFace Hub
+python scripts/upload_datasets_hf.py
+
+# Set your HuggingFace username in .env file:
+# HF_USERNAME=yourusername
+```
+
+**Created repositories:**
+- `chess-pieces-merged` - Combined detection dataset
+- `chess-pieces-dominique`, `chess-pieces-roboflow` - Individual detection datasets
+- `chess-board-segmentation` - Segmentation dataset with polygon annotations
 
 ### 📖 Detailed Instructions
 
@@ -123,7 +141,6 @@ The detailed guide covers:
 - Chessboard corner detection datasets
 - API key setup and troubleshooting
 - Dataset recreation from source
-- Upload to Hugging Face Hub
 
 ## 🔗 Resources & Models
 
@@ -135,9 +152,10 @@ The detailed guide covers:
 - **[Chess Board Segmentation](https://huggingface.co/dopaul/chess_board_segmentation)** - YOLO segmentation model for precise board boundary detection
 
 ### 📊 Training Datasets
-- **[Merged Dataset (Recommended)](https://huggingface.co/datasets/dopaul/chess-pieces-merged)** - Combined dataset for training
-- **[Dominique Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-dominique)** - Individual dataset from Roboflow
-- **[Roboflow Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-roboflow)** - Processed dataset from Kaggle
+- **[Merged Dataset (Recommended)](https://huggingface.co/datasets/dopaul/chess-pieces-merged)** - Combined detection dataset for training
+- **[Dominique Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-dominique)** - Individual detection dataset from Roboflow
+- **[Roboflow Dataset](https://huggingface.co/datasets/dopaul/chess-pieces-roboflow)** - Processed detection dataset from Kaggle
+- **[Chess Board Segmentation](https://huggingface.co/datasets/dopaul/chess-board-segmentation)** - Polygon segmentation dataset for board detection
 
 ### 🌐 Original Data Sources
 - [Kaggle Chess Pieces Dataset](https://www.kaggle.com/datasets/imtkaggleteam/chess-pieces-detection-image-dataset)

@@ -32,8 +32,18 @@ DATASET_LOCAL_NAMES = {
 }
 
 
-def download_dataset(hf_repo: str, local_name: str, data_path: Path, convert_to_yolo: bool = True):
-    """Download a single dataset from Hugging Face and optionally convert to YOLOv8 format"""
+def download_dataset(
+    hf_repo: str, local_name: str, data_path: Path, convert_to_yolo: bool = True, task_type: str = "detection"
+):
+    """Download a single dataset from Hugging Face and optionally convert to YOLOv8 format
+
+    Args:
+        hf_repo: HuggingFace repository name
+        local_name: Local directory name
+        data_path: Base path for data storage
+        convert_to_yolo: Whether to convert to YOLO format
+        task_type: Either 'detection' or 'segmentation'
+    """
     print(f"📦 Downloading {hf_repo}...")
 
     try:
@@ -50,7 +60,7 @@ def download_dataset(hf_repo: str, local_name: str, data_path: Path, convert_to_
     if convert_to_yolo:
         # Convert to YOLOv8 format
         print(f"🔄 Converting {local_name} to YOLOv8 format...")
-        success = convert_hf_to_yolo(dataset, local_dir, local_name)
+        success = convert_hf_to_yolo(dataset, local_dir, local_name, task_type)
         if not success:
             print(f"❌ Failed to convert {local_name} to YOLOv8 format")
             return False
@@ -65,8 +75,15 @@ def download_dataset(hf_repo: str, local_name: str, data_path: Path, convert_to_
     return True
 
 
-def convert_hf_to_yolo(dataset, output_dir: Path, dataset_name: str):
-    """Convert Hugging Face dataset to YOLOv8 format"""
+def convert_hf_to_yolo(dataset, output_dir: Path, dataset_name: str, task_type: str = "detection"):
+    """Convert Hugging Face dataset to YOLOv8 format
+
+    Args:
+        dataset: HuggingFace dataset
+        output_dir: Output directory for YOLO format
+        dataset_name: Name of the dataset
+        task_type: Either 'detection' or 'segmentation'
+    """
     try:
         # Create YOLOv8 directory structure
         for split_name, split_data in dataset.items():
@@ -94,34 +111,59 @@ def convert_hf_to_yolo(dataset, output_dir: Path, dataset_name: str):
                 label_path = labels_dir / f"{image_id}.txt"
                 with open(label_path, "w") as f:
                     annotations = example["annotations"]
-                    # Handle the case where annotations is a dict with lists
-                    if isinstance(annotations, dict) and "class_id" in annotations:
-                        num_objects = len(annotations["class_id"])
-                        for j in range(num_objects):
-                            class_id = annotations["class_id"][j]
-                            x_center = annotations["x_center"][j]
-                            y_center = annotations["y_center"][j]
-                            width = annotations["width"][j]
-                            height = annotations["height"][j]
 
-                            f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
-                    else:
-                        # Handle the case where annotations is a list of dicts (fallback)
-                        for annotation in annotations:
-                            class_id = annotation["class_id"]
-                            x_center = annotation["x_center"]
-                            y_center = annotation["y_center"]
-                            width = annotation["width"]
-                            height = annotation["height"]
+                    if task_type == "detection":
+                        # Handle detection format (bounding boxes)
+                        # Handle the case where annotations is a dict with lists
+                        if isinstance(annotations, dict) and "class_id" in annotations:
+                            num_objects = len(annotations["class_id"])
+                            for j in range(num_objects):
+                                class_id = annotations["class_id"][j]
+                                x_center = annotations["x_center"][j]
+                                y_center = annotations["y_center"][j]
+                                width = annotations["width"][j]
+                                height = annotations["height"][j]
 
-                            f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
+                                f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
+                        else:
+                            # Handle the case where annotations is a list of dicts (fallback)
+                            for annotation in annotations:
+                                class_id = annotation["class_id"]
+                                x_center = annotation["x_center"]
+                                y_center = annotation["y_center"]
+                                width = annotation["width"]
+                                height = annotation["height"]
+
+                                f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
+
+                    elif task_type == "segmentation":
+                        # Handle segmentation format (polygons)
+                        # Handle the case where annotations is a dict with lists
+                        if isinstance(annotations, dict) and "class_id" in annotations:
+                            num_objects = len(annotations["class_id"])
+                            for j in range(num_objects):
+                                class_id = annotations["class_id"][j]
+                                polygon = annotations["polygon"][j]
+
+                                # Write class_id followed by polygon coordinates
+                                coord_str = " ".join(map(str, polygon))
+                                f.write(f"{class_id} {coord_str}\n")
+                        else:
+                            # Handle the case where annotations is a list of dicts (fallback)
+                            for annotation in annotations:
+                                class_id = annotation["class_id"]
+                                polygon = annotation["polygon"]
+
+                                # Write class_id followed by polygon coordinates
+                                coord_str = " ".join(map(str, polygon))
+                                f.write(f"{class_id} {coord_str}\n")
 
                 # Progress indicator
                 if (i + 1) % 100 == 0:
                     print(f"    Processed {i + 1}/{len(split_data)} examples...")
 
         # Create data.yaml file
-        create_data_yaml(output_dir, dataset_name)
+        create_data_yaml(output_dir, dataset_name, task_type)
 
         return True
 
@@ -130,28 +172,42 @@ def convert_hf_to_yolo(dataset, output_dir: Path, dataset_name: str):
         return False
 
 
-def create_data_yaml(output_dir: Path, dataset_name: str):
+def create_data_yaml(output_dir: Path, dataset_name: str, task_type: str = "detection"):
     """Create data.yaml file for YOLOv8"""
-    data_yaml = {
-        "train": "train/images",
-        "val": "valid/images",
-        "test": "test/images",
-        "names": {
-            0: "black-bishop",
-            1: "black-king",
-            2: "black-knight",
-            3: "black-pawn",
-            4: "black-queen",
-            5: "black-rook",
-            6: "white-bishop",
-            7: "white-king",
-            8: "white-knight",
-            9: "white-pawn",
-            10: "white-queen",
-            11: "white-rook",
-        },
-        "nc": 12,
-    }
+
+    if task_type == "segmentation":
+        # Chess board segmentation (single class)
+        data_yaml = {
+            "train": "train/images",
+            "val": "valid/images",
+            "test": "test/images",
+            "names": {
+                0: "chess-board",
+            },
+            "nc": 1,
+        }
+    else:
+        # Chess piece detection (12 classes)
+        data_yaml = {
+            "train": "train/images",
+            "val": "valid/images",
+            "test": "test/images",
+            "names": {
+                0: "black-bishop",
+                1: "black-king",
+                2: "black-knight",
+                3: "black-pawn",
+                4: "black-queen",
+                5: "black-rook",
+                6: "white-bishop",
+                7: "white-king",
+                8: "white-knight",
+                9: "white-pawn",
+                10: "white-queen",
+                11: "white-rook",
+            },
+            "nc": 12,
+        }
 
     # Add source information for merged datasets
     if "merged" in dataset_name:
