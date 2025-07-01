@@ -71,8 +71,10 @@ class ChessBoardAnalyzer:
 
     def __init__(
         self,
-        segmentation_model: str = "dopaul/chess_board_segmentation",
-        piece_detection_model: str | None = "dopaul/chess_piece_detection",
+        # segmentation_model: str = "dopaul/chess_board_segmentation",
+        # piece_detection_model: str | None = "dopaul/chess_piece_detection",
+        segmentation_model: str = "dopaul/chess-board-segmentation",
+        piece_detection_model: str | None = "dopaul/chess-piece-detector",
         corner_method: str = "approx",
         create_visualizations: bool = True,
         threshold: int = 0,

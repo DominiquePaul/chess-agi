@@ -628,6 +628,27 @@ pre-commit install
 
 See detailed troubleshooting guide: [src/data_prep/README.md](src/data_prep/README.md#troubleshooting)
 
-### Notes
 
-- I used Roboflow to label my data. You can download data you labelled there like this:
+# Recording data for the SO-100
+
+Use the script below to collect data, assuming two cameras.
+
+```
+<!-- DATASET_NAME="chesso_100_movements" DESCRIPTION="Move the piece from red to blue" python -m src.record_lerobot_dataset \ -->
+
+python -m src.record_lerobot_dataset \
+  --robot.type=so100_follower \
+  --robot.port=/dev/tty.usbmodem59700741781 \
+  --robot.id=doms_follower_arm \
+  --robot.cameras="{ context: {type: opencv, index_or_path: 0, width: 1920, height: 1080, fps: 30}, arm: {type: opencv, index_or_path: 1, width: 1920, height: 1080, fps: 30}}" \
+  --teleop.type=so100_leader \
+  --teleop.port=/dev/tty.usbmodem59700724381 \
+  --teleop.id=doms_leader_arm \
+  --display_data=true \
+  --dataset.repo_id=dopaul/first_movement_test \
+  --dataset.num_episodes=50 \
+  --dataset.single_task="Move the chess piece from red to blue" \
+  --dataset.num_image_writer_processes=8 \
+  --dataset.episode_time_s=15 \
+  --dataset.reset_time_s=1
+```
