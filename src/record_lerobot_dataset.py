@@ -36,6 +36,7 @@ python -m lerobot.record \
 """
 
 import logging
+import re
 
 # Importing these to use VSCode debugger to step through the code
 import time
@@ -128,6 +129,8 @@ class DatasetRecordConfig:
     # Too many threads might cause unstable teleoperation fps due to main thread being blocked.
     # Not enough threads might cause low camera fps.
     num_image_writer_threads_per_camera: int = 4
+    # Save annotation images to artifacts folder for later labeling
+    save_annotations: bool = False
 
     def __post_init__(self):
         if self.single_task is None:
@@ -172,6 +175,23 @@ CIRCLE_THICKNESS = 4
 CIRCLE_COLORS = [(0, 0, 255), (255, 0, 0)]  # Red for first circle, Blue for second circle (BGR format for OpenCV)
 PREVIEW_COLOR = (255, 255, 0)  # Yellow for preview
 CENTER_DOT_RADIUS = 3  # Small dot in center of circle
+
+
+def sanitize_folder_name(repo_id: str) -> str:
+    """
+    Sanitize a dataset repo_id to create a valid folder name.
+
+    Args:
+        repo_id: The dataset repository ID (e.g., 'username/dataset-name')
+
+    Returns:
+        A sanitized folder name safe for filesystem use
+    """
+    # Replace invalid characters with underscores
+    sanitized = re.sub(r'[<>:"/\\|?*]', "_", repo_id)
+    # Replace slashes with underscores (common in repo_ids)
+    sanitized = sanitized.replace("/", "_")
+    return sanitized
 
 
 def annotate_circles_popup(image: np.ndarray) -> list[tuple[int, int]]:
@@ -421,12 +441,30 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
 
     listener, events = init_keyboard_listener()
 
+    # Create annotation images folder if save_annotations is enabled
+    annotation_folder = None
+    if cfg.dataset.save_annotations:
+        sanitized_name = sanitize_folder_name(cfg.dataset.repo_id)
+        annotation_folder = Path("artifacts") / sanitized_name / "annotation_images"
+        annotation_folder.mkdir(parents=True, exist_ok=True)
+        print(f"Annotation images will be saved to: {annotation_folder}")
+
     for recorded_episodes in range(cfg.dataset.num_episodes):
         # Get a sample image for circle annotation
         sample_observation = robot.get_observation()
         circle_coords = []
         if "context" in sample_observation:
             print(f"\nEpisode {dataset.num_episodes + 1}: Please annotate the image with 2 circles")
+
+            # Save the annotation image (one per episode) before showing popup
+            if cfg.dataset.save_annotations and annotation_folder:
+                # Convert RGB to BGR for saving with OpenCV
+                save_image = cv2.cvtColor(sample_observation["context"], cv2.COLOR_RGB2BGR)
+                filename = f"episode_{dataset.num_episodes + 1:03d}.png"
+                image_path = annotation_folder / filename
+                cv2.imwrite(str(image_path), save_image)
+                print(f"Saved annotation image: {image_path}")
+
             circle_coords = annotate_circles_popup(sample_observation["context"])
             if circle_coords:
                 print(f"Circles placed at: {circle_coords}")

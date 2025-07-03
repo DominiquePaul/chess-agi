@@ -631,11 +631,9 @@ See detailed troubleshooting guide: [src/data_prep/README.md](src/data_prep/READ
 
 # Recording data for the SO-100
 
-Use the script below to collect data, assuming two cameras.
+Use the script below to collect data. It assumes you are using two cameras so you might want to change this.
 
 ```
-<!-- DATASET_NAME="chesso_100_movements" DESCRIPTION="Move the piece from red to blue" python -m src.record_lerobot_dataset \ -->
-
 python -m src.record_lerobot_dataset \
   --robot.type=so100_follower \
   --robot.port=/dev/tty.usbmodem59700741781 \
@@ -644,11 +642,60 @@ python -m src.record_lerobot_dataset \
   --teleop.type=so100_leader \
   --teleop.port=/dev/tty.usbmodem59700724381 \
   --teleop.id=doms_leader_arm \
-  --display_data=true \
-  --dataset.repo_id=dopaul/first_movement_test \
+  --dataset.repo_id=dopaul/game_v1 \
   --dataset.num_episodes=50 \
   --dataset.single_task="Move the chess piece from red to blue" \
   --dataset.num_image_writer_processes=8 \
   --dataset.episode_time_s=15 \
-  --dataset.reset_time_s=1
+  --dataset.reset_time_s=1 \
+  --resume true
+```
+
+# Train a policy using ACT
+
+**Note**: Download the dataset directly to your HuggingFace cache directory to avoid symlink issues that can prevent the training script from recognizing the dataset properly.
+
+`huggingface-cli download dopaul/100_rooks --repo-type dataset --local-dir ~/.cache/huggingface/lerobot/dopaul/100_rooks`
+
+### Train a policy:
+
+**Careful ⚠️** My laptop crashed because it consumed 60gb of RAM. I trained on a H100 GPU on lightning.ai.
+
+```
+python lerobot/lerobot/scripts/train.py \
+    --policy.type=act \
+    --dataset.repo_id=dopaul/100_rooks \
+    --batch_size 8 \
+    --steps 200000 \
+    --eval_freq 20000 \
+    --log_freq 200 \
+    --dataset.video_backend=pyav \
+    --save_checkpoint true  \
+    --save_freq 20_000 \
+    --wandb.enable true \
+    --wandb.entity 'dominique-paul' \
+    --wandb.project chesso \
+    --wandb.mode offline
+```
+
+If you want to test the script with a smaller dataset you could use `dopaul/first_movement_test_v5`. It has 3 samples or reduce the batch size.
+
+### Evaluate a policy
+
+```
+python -m src.record_lerobot_dataset \
+  --robot.type=so100_follower \
+  --robot.port=/dev/tty.usbmodem59700741781 \
+  --robot.id=doms_follower_arm \
+  --robot.cameras="{ context: {type: opencv, index_or_path: 0, width: 1920, height: 1080, fps: 30}, arm: {type: opencv, index_or_path: 1, width: 1920, height: 1080, fps: 30}}" \
+  --dataset.repo_id=dopaul/eval_100_rook_unclipped_act_20k \
+  --dataset.num_episodes=25 \
+  --dataset.single_task="Move the chess piece from red to blue" \
+  --dataset.num_image_writer_processes=8 \
+  --dataset.episode_time_s=15 \
+  --dataset.reset_time_s=2 \
+  --teleop.type=so100_leader \
+  --teleop.port=/dev/tty.usbmodem59700724381 \
+  --teleop.id=doms_leader_arm \
+  --policy.path=dopaul/100_rooks_unclipped_act_20k
 ```

@@ -33,14 +33,11 @@ import numpy as np
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 try:
-    import tkinter as tk
-    from tkinter import ttk
-
-    from PIL import Image, ImageTk
+    import matplotlib.pyplot as plt
 
     GUI_AVAILABLE = True
 except ImportError:
-    print("Warning: tkinter or PIL not available. GUI display will be disabled.")
+    print("Warning: matplotlib not available. GUI display will be disabled.")
     GUI_AVAILABLE = False
 
 from camera import WebcamCapture
@@ -179,130 +176,78 @@ def save_camera_images(cameras: list[CameraInfo], output_dir: str | None = None)
     return save_path
 
 
-class CameraDisplayWindow:
-    """GUI window to display all discovered cameras and their captured images."""
+def display_cameras_matplotlib(cameras: list[CameraInfo]):
+    """Display all discovered cameras and their captured images using matplotlib."""
+    if not cameras:
+        print("❌ No cameras to display")
+        return
 
-    def __init__(self, cameras: list[CameraInfo]):
-        self.cameras = cameras
-        self.root = tk.Tk()
-        self.root.title(f"Camera Scanner - {len(cameras)} Camera(s) Found")
-        self.root.geometry("800x600")
+    # Calculate grid layout
+    n_cameras = len(cameras)
+    if n_cameras == 1:
+        rows, cols = 1, 1
+    elif n_cameras == 2:
+        rows, cols = 1, 2
+    elif n_cameras <= 4:
+        rows, cols = 2, 2
+    elif n_cameras <= 6:
+        rows, cols = 2, 3
+    elif n_cameras <= 9:
+        rows, cols = 3, 3
+    else:
+        rows, cols = 4, int(np.ceil(n_cameras / 4))
 
-        self.setup_ui()
+    # Create figure
+    fig, axes = plt.subplots(rows, cols, figsize=(15, 10))
+    fig.suptitle(f"🎥 Camera Scanner Results - {n_cameras} Camera(s) Found", fontsize=16, fontweight="bold")
 
-    def setup_ui(self):
-        """Set up the user interface."""
-        # Title
-        title_label = tk.Label(
-            self.root,
-            text=f"🎥 Camera Scanner Results - {len(self.cameras)} Camera(s) Found",
-            font=("Arial", 16, "bold"),
-            pady=10,
-        )
-        title_label.pack()
+    # Handle single subplot case
+    if n_cameras == 1:
+        axes = [axes]
+    elif rows == 1 or cols == 1:
+        axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+    else:
+        axes = axes.flatten()
 
-        if not self.cameras:
-            # No cameras found
-            no_camera_label = tk.Label(self.root, text="❌ No working cameras found", font=("Arial", 14), fg="red")
-            no_camera_label.pack(pady=50)
+    # Display each camera
+    for i, camera in enumerate(cameras):
+        ax = axes[i]
 
-            close_button = tk.Button(self.root, text="Close", command=self.root.destroy, font=("Arial", 12), pady=5)
-            close_button.pack()
-            return
-
-        # Create scrollable frame for cameras
-        canvas = tk.Canvas(self.root)
-        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-
-        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        # Add cameras to scrollable frame
-        for i, camera in enumerate(self.cameras):
-            self.add_camera_display(scrollable_frame, camera, i)
-
-        # Pack scrollable components
-        canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
-        scrollbar.pack(side="right", fill="y")
-
-        # Close button
-        button_frame = tk.Frame(self.root)
-        button_frame.pack(side="bottom", pady=10)
-
-        close_button = tk.Button(button_frame, text="Close", command=self.root.destroy, font=("Arial", 12), pady=5)
-        close_button.pack()
-
-    def add_camera_display(self, parent: tk.Widget, camera: CameraInfo, index: int):
-        """Add a camera display section to the parent widget."""
-        # Camera frame
-        camera_frame = tk.LabelFrame(parent, text=f"Camera {camera.port}", font=("Arial", 12, "bold"), padx=10, pady=10)
-        camera_frame.pack(fill="x", padx=5, pady=5)
-
-        # Create a horizontal layout
-        content_frame = tk.Frame(camera_frame)
-        content_frame.pack(fill="x")
-
-        # Info section (left side)
-        info_frame = tk.Frame(content_frame)
-        info_frame.pack(side="left", fill="y", padx=(0, 10))
-
-        info_text = f"""📹 Port: {camera.port}
-📐 Resolution: {camera.width} x {camera.height}
-⚡ FPS: {camera.fps:.1f}
-🕒 Captured: {camera.timestamp.strftime("%H:%M:%S")}"""
-
-        info_label = tk.Label(info_frame, text=info_text, font=("Courier", 10), justify="left", anchor="nw")
-        info_label.pack()
-
-        # Image section (right side)
         if camera.image is not None:
-            image_frame = tk.Frame(content_frame)
-            image_frame.pack(side="right")
-
-            # Convert image for display
-            display_image = self.prepare_image_for_display(camera.image, max_size=(300, 200))
-
-            if display_image:
-                photo = ImageTk.PhotoImage(display_image)
-                image_label = tk.Label(image_frame, image=photo)  # type: ignore
-                image_label.image = photo  # type: ignore # Keep a reference
-                image_label.pack()
+            # Convert BGR to RGB for matplotlib
+            rgb_image = cv2.cvtColor(camera.image, cv2.COLOR_BGR2RGB)
+            ax.imshow(rgb_image)
         else:
-            # No image available
-            no_image_label = tk.Label(content_frame, text="❌ No image captured", font=("Arial", 10), fg="red")
-            no_image_label.pack(side="right")
+            # Show placeholder for missing image
+            ax.text(
+                0.5,
+                0.5,
+                "❌ No Image\nCaptured",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=12,
+                color="red",
+            )
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
 
-    def prepare_image_for_display(self, cv_image: np.ndarray, max_size: tuple[int, int]) -> Image.Image | None:
-        """Convert OpenCV image to PIL Image for tkinter display."""
-        try:
-            # Convert BGR to RGB
-            rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        # Set title with camera info
+        title = f"Camera {camera.port}\n{camera.width}×{camera.height} @ {camera.fps:.1f}FPS\n{camera.timestamp.strftime('%H:%M:%S')}"
+        ax.set_title(title, fontsize=10, fontweight="bold")
+        ax.axis("off")
 
-            # Convert to PIL Image
-            pil_image = Image.fromarray(rgb_image)
+    # Hide unused subplots
+    for i in range(n_cameras, len(axes)):
+        axes[i].set_visible(False)
 
-            # Resize to fit max_size while maintaining aspect ratio
-            pil_image.thumbnail(max_size, Image.Resampling.LANCZOS)
+    # Adjust layout
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93)  # Make room for main title
 
-            return pil_image
-        except Exception as e:
-            print(f"Warning: Failed to prepare image for display: {e}")
-            return None
-
-    def show(self):
-        """Display the window."""
-        # Center the window
-        self.root.update_idletasks()
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
-        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.root.winfo_screenheight() // 2) - (height // 2)
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
-
-        self.root.mainloop()
+    # Show the plot
+    print("🖼️  Displaying camera images in matplotlib window...")
+    plt.show()
 
 
 def print_camera_summary(cameras: list[CameraInfo]):
@@ -348,12 +293,11 @@ def main():
     if not args.no_gui and GUI_AVAILABLE and cameras:
         print("\n🖼️  Opening camera display window...")
         try:
-            window = CameraDisplayWindow(cameras)
-            window.show()
+            display_cameras_matplotlib(cameras)
         except Exception as e:
             print(f"Warning: Failed to show GUI: {e}")
     elif not GUI_AVAILABLE:
-        print("\n⚠️  GUI libraries not available. Install tkinter and PIL for visual display.")
+        print("\n⚠️  GUI libraries not available. Install matplotlib for visual display.")
     elif args.no_gui:
         print("\n📝 GUI disabled by user.")
 
